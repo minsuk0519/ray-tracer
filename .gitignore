@@ -1,0 +1,17 @@
+# Build
+raytrace.exe
+*.o
+dependencies
+
+# Render output (regenerate with raytrace)
+*.hdr
+
+# OS / editor
+.DS_Store
+*.swp
+*~
+
+# Agent / local docs (not for the repo)
+.claude/
+*.md
+!README.md
