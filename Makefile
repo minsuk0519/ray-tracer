@@ -23,7 +23,7 @@ OPTIMIZE = -g -O4
 
 BROKENCXXFLAGS = $(OPTIMIZE) -std=c++11 -I$(LIBDIR)/glm -I$(LIBDIR) -I/usr/include -I$(LIBDIR)/assimp/include -Wnarrowing -I.  -fopenmp -msse3 
 
-ASSIMPDIR = /opt/homebrew/opt/assimp
+ASSIMPDIR = $(LIBDIR)/assimp
 CXXFLAGS = $(OPTIMIZE) -std=c++2b -I. -I$(LIBDIR)/glm -I$(LIBDIR) -I$(LIBDIR)/stb -I/usr/include -Wnarrowing -I$(ASSIMPDIR)/include
 
 LIBS = -L$(ASSIMPDIR)/lib -lassimp
