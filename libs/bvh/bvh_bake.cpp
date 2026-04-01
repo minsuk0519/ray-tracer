@@ -5,6 +5,7 @@
 #include <cassert>
 #include <algorithm>
 #include <limits>
+#include <cmath>
 #include <string>
 #include <sstream>
 #include <fstream>
@@ -158,8 +159,54 @@ static bool readFile()
 
 static bool initGeos()
 {
-    // TODO: initialize geometries from loaded file data
-    return false;
+    if (s_vertices.empty())
+    {
+        fprintf(stderr, "initGeos: no vertices loaded\n");
+        return false;
+    }
+    if (s_triangles.empty())
+    {
+        fprintf(stderr, "initGeos: no triangles loaded\n");
+        return false;
+    }
+
+    const uint vertCount = (uint)s_vertices.size();
+    const uint triCount  = (uint)s_triangles.size();
+
+    // validate all triangle vertex indices are in bounds
+    for (uint i = 0; i < triCount; i++)
+    {
+        const Triangle& tri = s_triangles[i];
+        for (int k = 0; k < 3; k++)
+        {
+            if (tri.v[k] >= vertCount)
+            {
+                fprintf(stderr, "initGeos: triangle %u has out-of-bounds vertex index %u (vertCount=%u)\n",
+                        i, tri.v[k], vertCount);
+                return false;
+            }
+        }
+    }
+
+    // normalize vertex normals — the inverse-transpose normal transform in loadMesh
+    // does not preserve length, so we re-normalize here
+    for (uint i = 0; i < vertCount; i++)
+    {
+        Vertex& v   = s_vertices[i];
+        float   len = std::sqrt(v.nx * v.nx + v.ny * v.ny + v.nz * v.nz);
+        if (len > 1e-6f)
+        {
+            v.nx /= len;
+            v.ny /= len;
+            v.nz /= len;
+        }
+        else
+        {
+            v.nx = 0.f; v.ny = 1.f; v.nz = 0.f;  // degenerate normal — fallback to up
+        }
+    }
+
+    return true;
 }
 
 static bool readScene()
