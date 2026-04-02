@@ -688,7 +688,29 @@ bool writeBakedData()
             outPath.c_str(), nodeCount, triCount, vertCount);
     return true;
 }
-bool finishBake()       { return false; }
+bool finishBake()
+{
+    s_scenePath.clear();
+    s_vertices.clear();
+    s_vertices.shrink_to_fit();
+    s_triangles.clear();
+    s_triangles.shrink_to_fit();
+    s_nodes.clear();
+    s_nodes.shrink_to_fit();
+    s_mortonData.clear();
+    s_mortonData.shrink_to_fit();
+    s_sahData.clear();
+    s_sahData.shrink_to_fit();
+    s_queue.clear();
+    s_queue.shrink_to_fit();
+    s_sortedTris.clear();
+    s_sortedTris.shrink_to_fit();
+    s_triIndex.clear();
+    s_triIndex.shrink_to_fit();
+    s_totalNodeCount = 0;
+    s_sceneAABB      = AABB();
+    return true;
+}
 
 bool bakeBVH()
 {
