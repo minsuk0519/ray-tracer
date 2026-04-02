@@ -572,7 +572,52 @@ bool bfsLoop()
 
     return true;
 }
-bool reorderNodes()     { return false; }
+bool reorderNodes()
+{
+    // DFS pre-order traversal: parent always precedes its children in memory.
+    // Build a remapping table old index → new index, then copy into a fresh array.
+
+    std::vector<BVHNode> ordered;
+    ordered.reserve(s_totalNodeCount);
+
+    std::vector<uint> remap(s_totalNodeCount, INVALID_NODE_INDEX);
+    std::vector<uint> stack;
+    stack.reserve(64);
+    stack.push_back(0);  // root
+
+    while (!stack.empty())
+    {
+        uint oldIdx  = stack.back();
+        stack.pop_back();
+
+        uint newIdx  = (uint)ordered.size();
+        remap[oldIdx] = newIdx;
+        ordered.push_back(s_nodes[oldIdx]);
+
+        // push right then left so left is processed first (LIFO)
+        const BVHNode& n = ordered.back();
+        if (!n.isLeaf)
+        {
+            stack.push_back(n.childID[1]);
+            stack.push_back(n.childID[0]);
+        }
+    }
+
+    // fix up child indices using the remap table
+    for (uint i = 0; i < (uint)ordered.size(); i++)
+    {
+        BVHNode& n = ordered[i];
+        if (!n.isLeaf)
+        {
+            n.childID[0] = remap[n.childID[0]];
+            n.childID[1] = remap[n.childID[1]];
+        }
+    }
+
+    s_nodes          = std::move(ordered);
+    s_totalNodeCount = (uint)s_nodes.size();
+    return true;
+}
 bool reorderTriangles() { return false; }
 bool writeBakedData()   { return false; }
 bool finishBake()       { return false; }
