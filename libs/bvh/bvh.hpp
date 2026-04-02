@@ -32,6 +32,8 @@ struct BVHNode
 
 namespace bvh
 {
+    void setScenePath(const std::string& path);
+
     bool bakeBVH();
 
     bool preBake();

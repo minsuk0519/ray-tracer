@@ -40,6 +40,10 @@ static std::vector<uint>          s_triIndex;         // indirection: s_triIndex
 static uint                       s_totalNodeCount = 0;
 static AABB                       s_sceneAABB;
 
+// ── Pipeline entry ────────────────────────────────────────────────────────────
+
+void setScenePath(const std::string& path) { s_scenePath = path; }
+
 // ── Morton helpers ────────────────────────────────────────────────────────────
 
 static uint64_t expandBits(uint v)
@@ -643,7 +647,47 @@ bool reorderTriangles()
     s_triangles = std::move(ordered);
     return true;
 }
-bool writeBakedData()   { return false; }
+bool writeBakedData()
+{
+    // derive output path: replace extension with .bvh
+    std::string outPath = s_scenePath;
+    auto dot = outPath.rfind('.');
+    if (dot != std::string::npos)
+        outPath = outPath.substr(0, dot);
+    outPath += ".bvh";
+
+    std::ofstream out(outPath, std::ios::binary);
+    if (!out.is_open())
+    {
+        fprintf(stderr, "writeBakedData: failed to open %s\n", outPath.c_str());
+        return false;
+    }
+
+    const uint nodeCount = s_totalNodeCount;
+    const uint triCount  = (uint)s_triangles.size();
+    const uint vertCount = (uint)s_vertices.size();
+
+    // header: version, counts
+    out.write(reinterpret_cast<const char*>(&BVH_FILE_VERSION), sizeof(uint));
+    out.write(reinterpret_cast<const char*>(&nodeCount),        sizeof(uint));
+    out.write(reinterpret_cast<const char*>(&triCount),         sizeof(uint));
+    out.write(reinterpret_cast<const char*>(&vertCount),        sizeof(uint));
+
+    // payload
+    out.write(reinterpret_cast<const char*>(s_nodes.data()),     nodeCount * sizeof(BVHNode));
+    out.write(reinterpret_cast<const char*>(s_triangles.data()), triCount  * sizeof(Triangle));
+    out.write(reinterpret_cast<const char*>(s_vertices.data()),  vertCount * sizeof(Vertex));
+
+    if (!out.good())
+    {
+        fprintf(stderr, "writeBakedData: write error on %s\n", outPath.c_str());
+        return false;
+    }
+
+    fprintf(stdout, "BVH baked: %s  (%u nodes, %u tris, %u verts)\n",
+            outPath.c_str(), nodeCount, triCount, vertCount);
+    return true;
+}
 bool finishBake()       { return false; }
 
 bool bakeBVH()

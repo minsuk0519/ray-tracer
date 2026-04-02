@@ -15,3 +15,5 @@ constexpr int   BVH_MAX_LEAF_SIZE    = 16;
 constexpr uint  BVH_MORTON_START_DEPTH  = 62;
 constexpr int   MORTON_UNIT_BIT_SIZE    = 21;
 constexpr uint  MORTON_UNIT_MAX         = (1 << MORTON_UNIT_BIT_SIZE) - 1;
+
+constexpr uint  BVH_FILE_VERSION = 1;
