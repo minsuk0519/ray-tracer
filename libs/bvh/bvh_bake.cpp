@@ -618,7 +618,31 @@ bool reorderNodes()
     s_totalNodeCount = (uint)s_nodes.size();
     return true;
 }
-bool reorderTriangles() { return false; }
+bool reorderTriangles()
+{
+    // Walk nodes in their post-reorderNodes() DFS order.
+    // For each leaf, copy its triangles into a new contiguous array
+    // and update beginTriIndex to the new position.
+
+    std::vector<Triangle> ordered;
+    ordered.reserve(s_triangles.size());
+
+    for (uint i = 0; i < s_totalNodeCount; i++)
+    {
+        BVHNode& node = s_nodes[i];
+        if (!node.isLeaf) continue;
+
+        uint newBegin = (uint)ordered.size();
+
+        for (uint k = 0; k < node.triSize; k++)
+            ordered.push_back(s_triangles[s_sortedTris[node.beginTriIndex + k]]);
+
+        node.beginTriIndex = newBegin;
+    }
+
+    s_triangles = std::move(ordered);
+    return true;
+}
 bool writeBakedData()   { return false; }
 bool finishBake()       { return false; }
 
