@@ -1,11 +1,11 @@
 // test_aabb.cpp -- hand-rolled unit tests for AABB.hpp
 //
-// Build (from repo root):
-//   g++ -std=c++2b -I. -Ilibs/glm -o tests/test_aabb tests/test_aabb.cpp
+// Build (from tests/):
+//   g++ -std=c++2b -I../src/bvh -I../libs/glm -o test_aabb test_aabb.cpp ../src/bvh/AABB.cpp
 // Run:
-//   ./tests/test_aabb
+//   ./test_aabb
 
-#include "../AABB.hpp"
+#include "AABB.hpp"
 
 #include <cstdio>
 #include <cmath>

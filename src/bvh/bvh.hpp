@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "AABB.hpp"
 #include "bvh_defines.hpp"
 
@@ -26,42 +28,15 @@ struct BVHNode
     };
 };
 
-// ── Baking types (#ifdef BAKING) ──────────────────────────────────────────────
+struct Vertex { float x, y, z, nx, ny, nz; };
+
+// ── Baking entry point (#ifdef BAKING) ────────────────────────────────────────
 
 #ifdef BAKING
 
 namespace bvh
 {
-    void setScenePath(const std::string& path);
-
-    bool bakeBVH();
-
-    bool preBake();
-    bool sortTrisByMorton();
-    bool initRoot();
-    bool bfsLoop();
-    bool reorderNodes();
-    bool reorderTriangles();
-    bool writeBakedData();
-    bool finishBake();
+    bool bakeBVH(const std::string& scenePath);
 }
-
-struct MortonData
-{
-    uint64_t mortonCode;
-};
-
-struct SAHData
-{
-    Axis  axis;
-    float splitValue;
-};
-
-struct NodeBakingJob
-{
-    uint nodeIndex;
-    uint depth;
-    bool isSAH = false;
-};
 
 #endif // BAKING

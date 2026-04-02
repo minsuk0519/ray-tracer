@@ -24,7 +24,7 @@ OPTIMIZE = -g -O4
 BROKENCXXFLAGS = $(OPTIMIZE) -std=c++11 -I$(LIBDIR)/glm -I$(LIBDIR) -I/usr/include -I$(LIBDIR)/assimp/include -Wnarrowing -I.  -fopenmp -msse3 
 
 ASSIMPDIR = $(LIBDIR)/assimp
-CXXFLAGS = $(OPTIMIZE) -std=c++2b -I. -I$(LIBDIR)/glm -I$(LIBDIR) -I$(LIBDIR)/stb -I/usr/include -Wnarrowing -I$(ASSIMPDIR)/include
+CXXFLAGS = $(OPTIMIZE) -std=c++2b -I. -Isrc -I$(LIBDIR)/glm -I$(LIBDIR)/stb -I/usr/include -Wnarrowing -I$(ASSIMPDIR)/include
 
 LIBS = -L$(ASSIMPDIR)/lib -lassimp
 
@@ -32,7 +32,7 @@ LIBS = -L$(ASSIMPDIR)/lib -lassimp
 target = raytrace.exe
 
 headers = geom.h raytrace.h acceleration.h
-src = geom.cpp main.cpp raytrace.cpp acceleration.cpp
+src = geom.cpp src/main.cpp raytrace.cpp acceleration.cpp
 extras = Makefile
 
 scenes = testscene.scn letterX.ply letterY.ply bunny.ply dwarf.x
@@ -70,7 +70,7 @@ pyzip: $(pyFiles)
 	cd ..;  zip -r $(pkgName)-py.zip $(pkgName); rm -rf $(pkgName)
 
 clean:
-	rm -rf *.suo *.sdf *.orig Release Debug ipch *.o *~ raytrace dependencies *13*scn  *13*ppm 
+	rm -rf *.suo *.sdf *.orig Release Debug ipch *.o src/*.o *~ raytrace dependencies *13*scn  *13*ppm
 
 dependencies: 
 	g++ -MM $(CXXFLAGS)  $(src) > dependencies

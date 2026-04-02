@@ -1,7 +1,7 @@
 #pragma once
 
-#include "libs/glm/glm/glm.hpp"
-#include "libs/glm/glm/gtc/constants.hpp"
+#include "glm/glm.hpp"
+#include "glm/gtc/constants.hpp"
 
 using glm::vec3;
 

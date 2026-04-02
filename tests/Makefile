@@ -1,7 +1,7 @@
 CXX      = g++
-CXXFLAGS = -std=c++2b -I.. -I../libs/glm -g
+CXXFLAGS = -std=c++2b -I../src/bvh -I../libs/glm -g
 
-SRCS_COMMON = ../AABB.cpp
+SRCS_COMMON = ../src/bvh/AABB.cpp
 
 TESTS = test_aabb
 
