@@ -15,8 +15,6 @@
 namespace bvh
 {
 
-static std::vector<SAHData> s_sahData;
-
 bool trySAHSplit(uint nodeIndex)
 {
     BVHNode& node  = s_nodes[nodeIndex];

@@ -14,7 +14,6 @@ namespace bvh
 
 // ── Shared baking state definitions ───────────────────────────────────────────
 // These match the extern declarations in bvh_bake_state.hpp.
-// NOTE: s_sahData is NOT defined here — it lives in bvh_sah.cpp.
 
 std::string                s_scenePath;
 

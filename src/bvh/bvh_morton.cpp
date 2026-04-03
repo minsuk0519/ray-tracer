@@ -46,7 +46,6 @@ bool computeMortonCodes()
     s_triIndex.resize((uint)(triCount * 1.5f));    // mirrors s_sortedTris; s_triIndex[k] → s_sortedTris[k]
 
     // pass 1: compute scene AABB
-    AABB sceneAABB;
     s_sceneAABB = AABB();
     for (uint i = 0; i < triCount; i++)
     {
@@ -55,15 +54,14 @@ bool computeMortonCodes()
         const Vertex&   v1  = s_vertices[tri.v[1]];
         const Vertex&   v2  = s_vertices[tri.v[2]];
 
-        sceneAABB.extend(glm::vec3(v0.x, v0.y, v0.z));
-        sceneAABB.extend(glm::vec3(v1.x, v1.y, v1.z));
-        sceneAABB.extend(glm::vec3(v2.x, v2.y, v2.z));
+        s_sceneAABB.extend(glm::vec3(v0.x, v0.y, v0.z));
+        s_sceneAABB.extend(glm::vec3(v1.x, v1.y, v1.z));
+        s_sceneAABB.extend(glm::vec3(v2.x, v2.y, v2.z));
     }
 
     // pass 2: compute centroids, quantize directly, pack Morton codes
-    s_sceneAABB = sceneAABB;
-    glm::vec3 sceneMin  = sceneAABB.min;
-    glm::vec3 sceneSize = sceneAABB.max - sceneAABB.min;
+    glm::vec3 sceneMin  = s_sceneAABB.min;
+    glm::vec3 sceneSize = s_sceneAABB.max - s_sceneAABB.min;
     if (sceneSize.x == 0.f) sceneSize.x = 1.f;
     if (sceneSize.y == 0.f) sceneSize.y = 1.f;
     if (sceneSize.z == 0.f) sceneSize.z = 1.f;

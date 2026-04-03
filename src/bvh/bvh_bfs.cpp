@@ -67,8 +67,7 @@ bool bfsLoop()
         if (job.isSAH)
         {
             // delegate to SAH module — trySAHSplit marks the node as leaf on failure
-            if (!trySAHSplit(job.nodeIndex))
-                continue;
+            trySAHSplit(job.nodeIndex);
             continue;
         }
 

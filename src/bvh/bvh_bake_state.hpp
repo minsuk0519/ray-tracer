@@ -9,7 +9,6 @@
 #include "bvh_defines.hpp"
 
 // ── Shared baking state (extern declarations) ─────────────────────────────────
-// NOTE: s_sahData is intentionally absent — it is SAH-private (lives in bvh_sah.cpp).
 
 namespace bvh
 {

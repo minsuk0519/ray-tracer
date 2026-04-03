@@ -10,12 +10,6 @@ struct MortonData
     uint64_t mortonCode;
 };
 
-struct SAHData
-{
-    Axis  axis;
-    float splitValue;
-};
-
 struct NodeBakingJob
 {
     uint nodeIndex;
