@@ -37,7 +37,7 @@ static uint64_t packMortonBit(uint x, uint y, uint z)
 
 // ── Morton code computation ───────────────────────────────────────────────────
 
-bool computeMortonCodes()
+static bool computeMortonCodes()
 {
     const uint triCount = (uint)s_triangles.size();
 
@@ -101,6 +101,8 @@ bool sortTrisByMorton()
 {
     const uint triCount = (uint)s_triangles.size();
     if (triCount == 0) return false;
+
+    if (!computeMortonCodes()) return false;
 
     constexpr int RADIX_BITS  = 8;
     constexpr int RADIX_SIZE  = 1 << RADIX_BITS;  // 256

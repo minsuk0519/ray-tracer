@@ -30,7 +30,7 @@ static bool loadMesh(const std::string& path, const glm::mat4& transform)
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
-        fprintf(stderr, "Assimp error loading %s: %s\n", path.c_str(), importer.GetErrorString());
+        fprintf(stderr, "Error : assimp failed to load %s : %s on loadMesh()\n", path.c_str(), importer.GetErrorString());
         return false;
     }
 
@@ -72,60 +72,16 @@ static bool loadMesh(const std::string& path, const glm::mat4& transform)
     return true;
 }
 
-static bool readFile()
-{
-    if (s_scenePath.empty())
-        return false;
-
-    std::ifstream file(s_scenePath);
-    if (!file.is_open())
-    {
-        fprintf(stderr, "Failed to open scene file: %s\n", s_scenePath.c_str());
-        return false;
-    }
-
-    std::string line;
-    while (std::getline(file, line))
-    {
-        std::istringstream iss(line);
-        std::string token;
-        if (!(iss >> token) || token != "mesh")
-            continue;
-
-        // syntax: mesh <filename> <tx> <ty> <tz> <scale> q <qx> <qy> <qz> <qw>
-        std::string meshPath;
-        float tx, ty, tz, scale;
-        std::string orientType;
-        float qx = 0.f, qy = 0.f, qz = 0.f, qw = 1.f;
-
-        if (!(iss >> meshPath >> tx >> ty >> tz >> scale >> orientType))
-            continue;
-
-        if (orientType == "q")
-            iss >> qx >> qy >> qz >> qw;
-
-        glm::mat4 transform =
-            glm::translate(glm::mat4(1.f), glm::vec3(tx, ty, tz)) *
-            glm::scale(glm::mat4(1.f), glm::vec3(scale)) *
-            glm::toMat4(glm::quat(qw, qx, qy, qz));
-
-        if (!loadMesh(meshPath, transform))
-            return false;
-    }
-
-    return true;
-}
-
-static bool initGeos()
+bool initGeos()
 {
     if (s_vertices.empty())
     {
-        fprintf(stderr, "initGeos: no vertices loaded\n");
+        fprintf(stderr, "Error : no vertices loaded on initGeos()\n");
         return false;
     }
     if (s_triangles.empty())
     {
-        fprintf(stderr, "initGeos: no triangles loaded\n");
+        fprintf(stderr, "Error : no triangles loaded on initGeos()\n");
         return false;
     }
 
@@ -140,7 +96,7 @@ static bool initGeos()
         {
             if (tri.v[k] >= vertCount)
             {
-                fprintf(stderr, "initGeos: triangle %u has out-of-bounds vertex index %u (vertCount=%u)\n",
+                fprintf(stderr, "Error : triangle %u has out-of-bounds vertex index %u (vertCount=%u) on initGeos()\n",
                         i, tri.v[k], vertCount);
                 return false;
             }
@@ -172,8 +128,63 @@ static bool initGeos()
 
 bool readScene()
 {
-    if (!readFile())  return false;
-    if (!initGeos())  return false;
+    if (s_scenePath.empty())
+    {
+        fprintf(stderr, "Error : empty scene path on readScene()\n");
+        return false;
+    }
+
+    std::ifstream file(s_scenePath);
+    if (!file.is_open())
+    {
+        fprintf(stderr, "Error : failed to open scene file %s on readScene()\n", s_scenePath.c_str());
+        return false;
+    }
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+        std::istringstream iss(line);
+        std::string token;
+        if (!(iss >> token) || token != "mesh")
+        {
+            continue;
+        }
+
+        // syntax: mesh <filename> <tx> <ty> <tz> <scale> q <qx> <qy> <qz> <qw>
+        std::string meshPath;
+        float tx, ty, tz, scale;
+        std::string orientType;
+        float qx = 0.f, qy = 0.f, qz = 0.f, qw = 1.f;
+
+        if (!(iss >> meshPath >> tx >> ty >> tz >> scale >> orientType))
+        {
+            continue;
+        }
+
+        if (orientType == "q")
+        {
+            iss >> qx >> qy >> qz >> qw;
+        }
+        else
+        {
+            fprintf(stderr, "Warning : unknown orientation type '%s', defaulting to identity on readScene()\n", orientType.c_str());
+        }
+
+        fprintf(stdout, "Info : Found Mesh : %s\n", meshPath.c_str());
+
+        glm::mat4 transform =
+            glm::translate(glm::mat4(1.f), glm::vec3(tx, ty, tz)) *
+            glm::scale(glm::mat4(1.f), glm::vec3(scale)) *
+            glm::toMat4(glm::quat(qw, qx, qy, qz));
+
+        if (!loadMesh(meshPath, transform))
+        {
+            fprintf(stderr, "Error : failed to load mesh %s on readScene()\n", meshPath.c_str());
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -183,13 +194,15 @@ bool writeBakedData()
     std::string outPath = s_scenePath;
     auto dot = outPath.rfind('.');
     if (dot != std::string::npos)
+    {
         outPath = outPath.substr(0, dot);
+    }
     outPath += ".bvh";
 
     std::ofstream out(outPath, std::ios::binary);
     if (!out.is_open())
     {
-        fprintf(stderr, "writeBakedData: failed to open %s\n", outPath.c_str());
+        fprintf(stderr, "Error : failed to open output file %s on writeBakedData()\n", outPath.c_str());
         return false;
     }
 
@@ -210,7 +223,7 @@ bool writeBakedData()
 
     if (!out.good())
     {
-        fprintf(stderr, "writeBakedData: write error on %s\n", outPath.c_str());
+        fprintf(stderr, "Error : write error for %s on writeBakedData()\n", outPath.c_str());
         return false;
     }
 

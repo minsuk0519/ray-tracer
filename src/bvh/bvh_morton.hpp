@@ -2,6 +2,5 @@
 
 namespace bvh
 {
-    bool computeMortonCodes();
     bool sortTrisByMorton();
 }

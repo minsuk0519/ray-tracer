@@ -32,13 +32,14 @@ AABB                       s_sceneAABB;
 static bool preBake()
 {
     if (!readScene())
+    {
         return false;
+    }
 
-    if (s_vertices.empty() || s_triangles.empty())
+    if (!initGeos())
+    {
         return false;
-
-    if (!computeMortonCodes())
-        return false;
+    }
 
     return true;
 }
