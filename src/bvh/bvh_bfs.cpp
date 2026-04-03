@@ -26,21 +26,30 @@ AABB computeRangeAABB(uint begin, uint end)
     return aabb;
 }
 
+static bool shouldSAH(const BVHNode& node)
+{
+    return node.triSize <= (uint)BVH_LBVH_THRESHOLD;
+}
+
 bool initRoot()
 {
     const uint triCount = (uint)s_triangles.size();
-    if (triCount == 0) return false;
+    if (triCount == 0)
+    {
+        return false;
+    }
 
-    s_nodes.resize(triCount * 3 + 1);
+    // worst case: spatial splits produce triCount * SPATIAL_TRICOUNT_MULTIPLIER leaves,
+    // a full binary tree over N leaves has 2N - 1 nodes total
+    s_nodes.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER) * 2 - 1);
     s_totalNodeCount = 1;
 
-    BVHNode& root       = s_nodes[0];
-    root.aabb           = s_sceneAABB;
-    root.isLeaf         = true;
-    root.beginTriIndex  = 0;
-    root.triSize        = triCount;
+    s_nodes[0].aabb          = s_sceneAABB;
+    s_nodes[0].isLeaf        = true;
+    s_nodes[0].beginTriIndex = 0;
+    s_nodes[0].triSize       = triCount;
 
-    s_queue.push_back({ 0, BVH_MORTON_START_DEPTH, false });
+    s_queue.push_back({ 0, BVH_MORTON_START_DEPTH, shouldSAH(s_nodes[0]) });
 
     return true;
 }
@@ -92,7 +101,7 @@ bool bfsLoop()
             // no flip at this bit — go deeper or switch to SAH
             NodeBakingJob retry  = job;
             retry.depth          = (job.depth > 0) ? job.depth - 1 : 0;
-            retry.isSAH          = (job.depth == 0 || triCount <= (uint)BVH_LBVH_THRESHOLD);
+            retry.isSAH          = (job.depth == 0 || shouldSAH(node));
             s_queue.push_back(retry);
             continue;
         }
@@ -119,8 +128,8 @@ bool bfsLoop()
         right.beginTriIndex = splitIndex;
         right.triSize    = end - splitIndex;
 
-        s_queue.push_back({ leftIndex,  childDepth, left.triSize  <= (uint)BVH_LBVH_THRESHOLD });
-        s_queue.push_back({ rightIndex, childDepth, right.triSize <= (uint)BVH_LBVH_THRESHOLD });
+        s_queue.push_back({ leftIndex,  childDepth, shouldSAH(left)  });
+        s_queue.push_back({ rightIndex, childDepth, shouldSAH(right) });
     }
 
     return true;
