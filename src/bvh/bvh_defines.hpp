@@ -16,3 +16,5 @@ constexpr int   MORTON_UNIT_BIT_SIZE    = 21;
 constexpr uint  MORTON_UNIT_MAX         = (1 << MORTON_UNIT_BIT_SIZE) - 1;
 
 constexpr uint  BVH_FILE_VERSION = 1;
+
+constexpr float SPATIAL_TRICOUNT_MULTIPLIER = 1.5f;  // conservative space multiplier for triangles added during spatial splits

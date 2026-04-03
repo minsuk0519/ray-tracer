@@ -42,8 +42,8 @@ static bool computeMortonCodes()
     const uint triCount = (uint)s_triangles.size();
 
     s_mortonData.resize(triCount);
-    s_sortedTris.resize((uint)(triCount * 1.5f));  // extra capacity for spatial splits
-    s_triIndex.resize((uint)(triCount * 1.5f));    // mirrors s_sortedTris; s_triIndex[k] → s_sortedTris[k]
+    s_sortedTris.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));  // extra capacity for spatial splits
+    s_triIndex.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));    // mirrors s_sortedTris; s_triIndex[k] → s_sortedTris[k]
 
     // pass 1: compute scene AABB
     s_sceneAABB = AABB();
@@ -62,9 +62,24 @@ static bool computeMortonCodes()
     // pass 2: compute centroids, quantize directly, pack Morton codes
     glm::vec3 sceneMin  = s_sceneAABB.min;
     glm::vec3 sceneSize = s_sceneAABB.max - s_sceneAABB.min;
-    if (sceneSize.x == 0.f) sceneSize.x = 1.f;
-    if (sceneSize.y == 0.f) sceneSize.y = 1.f;
-    if (sceneSize.z == 0.f) sceneSize.z = 1.f;
+    if (sceneSize.x == 0.f)
+    {
+        sceneSize.x = 1.f;
+    }
+    if (sceneSize.y == 0.f)
+    {
+        sceneSize.y = 1.f;
+    }
+    if (sceneSize.z == 0.f)
+    {
+        sceneSize.z = 1.f;
+    }
+
+    // quantize directly to 21-bit integers without intermediate [0,1] normalization
+    auto quantize = [](float c, float min, float size) -> uint {
+        uint q = (uint)((c - min) * (float)MORTON_UNIT_MAX / size);
+        return q > MORTON_UNIT_MAX ? MORTON_UNIT_MAX : q;
+    };
 
     for (uint i = 0; i < triCount; i++)
     {
@@ -77,19 +92,13 @@ static bool computeMortonCodes()
         float cy = (v0.y + v1.y + v2.y) / 3.0f;
         float cz = (v0.z + v1.z + v2.z) / 3.0f;
 
-        // quantize directly to 21-bit integers without intermediate [0,1] normalization
-        auto quantize = [&](float c, float min, float size) -> uint {
-            uint q = (uint)((c - min) * (float)MORTON_UNIT_MAX / size);
-            return q > MORTON_UNIT_MAX ? MORTON_UNIT_MAX : q;
-        };
-
         uint qx = quantize(cx, sceneMin.x, sceneSize.x);
         uint qy = quantize(cy, sceneMin.y, sceneSize.y);
         uint qz = quantize(cz, sceneMin.z, sceneSize.z);
 
         s_mortonData[i].mortonCode = packMortonBit(qx, qy, qz);
         s_sortedTris[i]            = i;
-        s_triIndex[i]              = i;  // TODO: spatial split — keep s_triIndex mirrored with s_sortedTris during sort
+        s_triIndex[i]              = i;
     }
 
     return true;
@@ -100,14 +109,19 @@ static bool computeMortonCodes()
 bool sortTrisByMorton()
 {
     const uint triCount = (uint)s_triangles.size();
-    if (triCount == 0) return false;
-
-    if (!computeMortonCodes()) return false;
+    if (triCount == 0)
+    {
+        return false;
+    }
+    if (!computeMortonCodes())
+    {
+        return false;
+    }
 
     constexpr int RADIX_BITS  = 8;
     constexpr int RADIX_SIZE  = 1 << RADIX_BITS;  // 256
     constexpr int RADIX_MASK  = RADIX_SIZE - 1;
-    constexpr int PASSES      = sizeof(uint64_t);  // 8 passes for 64-bit key
+    constexpr int PASSES      = (sizeof(uint64_t) * 8) / RADIX_BITS;  // 8 passes for 64-bit key
 
     std::vector<uint> temp(triCount);
     uint count[RADIX_SIZE];
