@@ -52,6 +52,7 @@ static bool reorderNodes()
 
     std::vector<BVHNode> ordered;
     ordered.reserve(s_totalNodeCount);
+    uint orderedSize = 0;
 
     std::vector<uint> remap(s_totalNodeCount, INVALID_NODE_INDEX);
     std::vector<uint> stack;
@@ -63,32 +64,29 @@ static bool reorderNodes()
         uint oldIdx  = stack.back();
         stack.pop_back();
 
-        uint newIdx  = (uint)ordered.size();
-        remap[oldIdx] = newIdx;
+        remap[oldIdx] = orderedSize;
         ordered.push_back(s_nodes[oldIdx]);
+        orderedSize++;
 
         // push right then left so left is processed first (LIFO)
-        const BVHNode& n = ordered.back();
-        if (!n.isLeaf)
+        if (!s_nodes[oldIdx].isLeaf)
         {
-            stack.push_back(n.childID[1]);
-            stack.push_back(n.childID[0]);
+            stack.push_back(s_nodes[oldIdx].childID[1]);
+            stack.push_back(s_nodes[oldIdx].childID[0]);
         }
     }
 
     // fix up child indices using the remap table
-    for (uint i = 0; i < (uint)ordered.size(); i++)
+    for (uint i = 0; i < orderedSize; i++)
     {
-        BVHNode& n = ordered[i];
-        if (!n.isLeaf)
+        if (!ordered[i].isLeaf)
         {
-            n.childID[0] = remap[n.childID[0]];
-            n.childID[1] = remap[n.childID[1]];
+            ordered[i].childID[0] = remap[ordered[i].childID[0]];
+            ordered[i].childID[1] = remap[ordered[i].childID[1]];
         }
     }
 
-    s_nodes          = std::move(ordered);
-    s_totalNodeCount = (uint)s_nodes.size();
+    s_nodes = std::move(ordered);
     return true;
 }
 
