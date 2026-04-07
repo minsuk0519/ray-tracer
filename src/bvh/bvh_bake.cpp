@@ -124,6 +124,7 @@ static bool reorderTriangles()
 static bool finishBake()
 {
     s_scenePath.clear();
+    s_scenePath.shrink_to_fit();
     s_vertices.clear();
     s_vertices.shrink_to_fit();
     s_triangles.clear();
