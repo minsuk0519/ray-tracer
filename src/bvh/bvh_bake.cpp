@@ -98,18 +98,23 @@ static bool reorderTriangles()
 
     std::vector<Triangle> ordered;
     ordered.reserve(s_triangles.size());
+    uint orderedSize = 0;
 
     for (uint i = 0; i < s_totalNodeCount; i++)
     {
-        BVHNode& node = s_nodes[i];
-        if (!node.isLeaf) continue;
+        if (!s_nodes[i].isLeaf)
+        {
+            continue;
+        }
 
-        uint newBegin = (uint)ordered.size();
+        uint oldBegin = s_nodes[i].beginTriIndex;
+        s_nodes[i].beginTriIndex = orderedSize;
 
-        for (uint k = 0; k < node.triSize; k++)
-            ordered.push_back(s_triangles[s_sortedTris[node.beginTriIndex + k]]);
-
-        node.beginTriIndex = newBegin;
+        for (uint k = 0; k < s_nodes[i].triSize; k++)
+        {
+            ordered.push_back(s_triangles[s_sortedTris[oldBegin + k]]);
+            orderedSize++;
+        }
     }
 
     s_triangles = std::move(ordered);
