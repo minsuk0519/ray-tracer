@@ -112,7 +112,7 @@ static bool reorderTriangles()
 
         for (uint k = 0; k < s_nodes[i].triSize; k++)
         {
-            ordered.push_back(s_triangles[s_sortedTris[oldBegin + k]]);
+            ordered.push_back(s_triangles[s_sortedTris[s_triIndex[oldBegin + k]]]);
             orderedSize++;
         }
     }
