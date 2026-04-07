@@ -1,5 +1,6 @@
 #pragma once
 
+#include <deque>
 #include <vector>
 #include <string>
 
@@ -18,7 +19,7 @@ namespace bvh
     extern std::vector<Triangle>      s_triangles;
     extern std::vector<BVHNode>       s_nodes;
     extern std::vector<MortonData>    s_mortonData;
-    extern std::vector<NodeBakingJob> s_queue;
+    extern std::deque<NodeBakingJob>  s_queue;
     extern std::vector<uint>          s_sortedTris;
     extern std::vector<uint>          s_triIndex;       // reserved for spatial split indirection; mirrors s_sortedTris
     extern uint                       s_totalNodeCount;

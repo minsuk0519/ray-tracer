@@ -13,6 +13,5 @@ struct MortonData
 struct NodeBakingJob
 {
     uint nodeIndex;
-    uint depth;
     bool isSAH = false;
 };

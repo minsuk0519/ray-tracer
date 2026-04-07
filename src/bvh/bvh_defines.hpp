@@ -11,7 +11,6 @@ constexpr int   BVH_SAH_BINS_MAX     = 32;
 constexpr float BVH_C_TRAV           = 1.0f;
 constexpr float BVH_C_ISECT          = 1.2f;
 constexpr int   BVH_MAX_LEAF_SIZE    = 16;
-constexpr uint  BVH_MORTON_START_DEPTH  = 62;
 constexpr int   MORTON_UNIT_BIT_SIZE    = 21;
 constexpr uint  MORTON_UNIT_MAX         = (1 << MORTON_UNIT_BIT_SIZE) - 1;
 

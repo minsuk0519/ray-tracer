@@ -6,6 +6,7 @@
 #include "bvh_morton.hpp"
 #include "bvh_bfs.hpp"
 
+#include <deque>
 #include <vector>
 #include <string>
 
@@ -21,7 +22,7 @@ std::vector<Vertex>        s_vertices;
 std::vector<Triangle>      s_triangles;
 std::vector<BVHNode>       s_nodes;
 std::vector<MortonData>    s_mortonData;
-std::vector<NodeBakingJob> s_queue;
+std::deque<NodeBakingJob>  s_queue;
 std::vector<uint>          s_sortedTris;
 std::vector<uint>          s_triIndex;
 uint                       s_totalNodeCount = 0;

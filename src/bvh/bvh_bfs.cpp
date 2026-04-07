@@ -1,5 +1,6 @@
 #define BAKING
 #include "bvh.hpp"
+#include <bit>
 #include "bvh_bake_state.hpp"
 #include "bvh_bake_types.hpp"
 #include "bvh_bfs.hpp"
@@ -31,6 +32,21 @@ static bool shouldSAH(const BVHNode& node)
     return node.triSize <= (uint)BVH_LBVH_THRESHOLD;
 }
 
+static uint findMortonSplitIndex(uint begin, uint triCount, uint64_t splitMask)
+{
+    for (uint i = 0; i < triCount - 1; i++)
+    {
+        uint beginCodeIndex = begin + i;
+        uint64_t codeA      = s_mortonData[s_sortedTris[beginCodeIndex]].mortonCode;
+        uint64_t codeB      = s_mortonData[s_sortedTris[beginCodeIndex + 1]].mortonCode;
+        if ((codeA & splitMask) != (codeB & splitMask))
+        {
+            return beginCodeIndex + 1;
+        }
+    }
+    return INVALID_NODE_INDEX;  // unreachable if xorCodes != 0
+}
+
 bool initRoot()
 {
     const uint triCount = (uint)s_triangles.size();
@@ -49,7 +65,7 @@ bool initRoot()
     s_nodes[0].beginTriIndex = 0;
     s_nodes[0].triSize       = triCount;
 
-    s_queue.push_back({ 0, BVH_MORTON_START_DEPTH, shouldSAH(s_nodes[0]) });
+    s_queue.push_back({ 0, shouldSAH(s_nodes[0]) });
 
     return true;
 }
@@ -58,18 +74,13 @@ bool bfsLoop()
 {
     while (!s_queue.empty())
     {
-        NodeBakingJob job = s_queue.back();
-        s_queue.pop_back();
-
-        BVHNode& node  = s_nodes[job.nodeIndex];
-        uint begin     = node.beginTriIndex;
-        uint end       = begin + node.triSize;
-        uint triCount  = node.triSize;
+        NodeBakingJob job = s_queue.front();
+        s_queue.pop_front();
 
         // make leaf if small enough
-        if (triCount <= (uint)BVH_MAX_LEAF_SIZE)
+        if (s_nodes[job.nodeIndex].triSize <= (uint)BVH_MAX_LEAF_SIZE)
         {
-            node.isLeaf = true;
+            s_nodes[job.nodeIndex].isLeaf = true;
             continue;
         }
 
@@ -82,54 +93,44 @@ bool bfsLoop()
 
         // ── Morton path ──────────────────────────────────────────────────────
 
-        uint splitIndex = INVALID_NODE_INDEX;
-        uint64_t mask   = 1ULL << job.depth;
+        uint begin    = s_nodes[job.nodeIndex].beginTriIndex;
+        uint triCount = s_nodes[job.nodeIndex].triSize;
+        uint end      = begin + triCount;
 
-        for (uint i = begin; i < end - 1; i++)
-        {
-            uint64_t codeA = s_mortonData[s_sortedTris[i]].mortonCode;
-            uint64_t codeB = s_mortonData[s_sortedTris[i + 1]].mortonCode;
-            if ((codeA & mask) != (codeB & mask))
-            {
-                splitIndex = i + 1;
-                break;
-            }
-        }
+        uint64_t firstCode = s_mortonData[s_sortedTris[begin]].mortonCode;
+        uint64_t lastCode  = s_mortonData[s_sortedTris[end - 1]].mortonCode;
+        uint64_t xorCodes  = firstCode ^ lastCode;
 
-        if (splitIndex == INVALID_NODE_INDEX)
+        if (xorCodes == 0)
         {
-            // no flip at this bit — go deeper or switch to SAH
-            NodeBakingJob retry  = job;
-            retry.depth          = (job.depth > 0) ? job.depth - 1 : 0;
-            retry.isSAH          = (job.depth == 0 || shouldSAH(node));
-            s_queue.push_back(retry);
+            // all codes identical — no Morton split possible
+            trySAHSplit(job.nodeIndex);
             continue;
         }
 
+        uint64_t splitMask  = std::bit_floor(xorCodes);
+        uint     splitIndex = findMortonSplitIndex(begin, triCount, splitMask);
+
         // allocate two child nodes
-        uint leftIndex   = s_totalNodeCount++;
-        uint rightIndex  = s_totalNodeCount++;
+        uint leftIndex  = s_totalNodeCount++;
+        uint rightIndex = s_totalNodeCount++;
 
-        node.isLeaf      = false;
-        node.childID[0]  = leftIndex;
-        node.childID[1]  = rightIndex;
+        s_nodes[job.nodeIndex].isLeaf     = false;
+        s_nodes[job.nodeIndex].childID[0] = leftIndex;
+        s_nodes[job.nodeIndex].childID[1] = rightIndex;
 
-        uint childDepth  = (job.depth > 0) ? job.depth - 1 : 0;
+        s_nodes[leftIndex].aabb          = computeRangeAABB(begin, splitIndex);
+        s_nodes[leftIndex].isLeaf        = true;
+        s_nodes[leftIndex].beginTriIndex = begin;
+        s_nodes[leftIndex].triSize       = splitIndex - begin;
 
-        BVHNode& left    = s_nodes[leftIndex];
-        left.aabb        = computeRangeAABB(begin, splitIndex);
-        left.isLeaf      = true;
-        left.beginTriIndex = begin;
-        left.triSize     = splitIndex - begin;
+        s_nodes[rightIndex].aabb          = computeRangeAABB(splitIndex, end);
+        s_nodes[rightIndex].isLeaf        = true;
+        s_nodes[rightIndex].beginTriIndex = splitIndex;
+        s_nodes[rightIndex].triSize       = end - splitIndex;
 
-        BVHNode& right   = s_nodes[rightIndex];
-        right.aabb       = computeRangeAABB(splitIndex, end);
-        right.isLeaf     = true;
-        right.beginTriIndex = splitIndex;
-        right.triSize    = end - splitIndex;
-
-        s_queue.push_back({ leftIndex,  childDepth, shouldSAH(left)  });
-        s_queue.push_back({ rightIndex, childDepth, shouldSAH(right) });
+        s_queue.push_back({ leftIndex,  shouldSAH(s_nodes[leftIndex])  });
+        s_queue.push_back({ rightIndex, shouldSAH(s_nodes[rightIndex]) });
     }
 
     return true;
