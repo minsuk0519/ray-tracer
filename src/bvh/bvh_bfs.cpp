@@ -16,13 +16,13 @@ AABB computeRangeAABB(uint begin, uint end)
     AABB aabb;
     for (uint i = begin; i < end; i++)
     {
-        const Triangle& tri = s_triangles[s_sortedTris[i]];
-        const Vertex&   v0  = s_vertices[tri.v[0]];
-        const Vertex&   v1  = s_vertices[tri.v[1]];
-        const Vertex&   v2  = s_vertices[tri.v[2]];
-        aabb.extend(glm::vec3(v0.x, v0.y, v0.z));
-        aabb.extend(glm::vec3(v1.x, v1.y, v1.z));
-        aabb.extend(glm::vec3(v2.x, v2.y, v2.z));
+        uint sortedIndex   = s_triIndex[i];
+        uint triangleIndex = s_sortedTris[sortedIndex];
+        for (int j = 0; j < 3; j++)
+        {
+            uint vertexIndex = s_triangles[triangleIndex].v[j];
+            aabb.extend(glm::vec3(s_vertices[vertexIndex].x, s_vertices[vertexIndex].y, s_vertices[vertexIndex].z));
+        }
     }
     return aabb;
 }

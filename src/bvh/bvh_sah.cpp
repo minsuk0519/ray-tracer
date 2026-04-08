@@ -17,10 +17,9 @@ namespace bvh
 
 bool trySAHSplit(uint nodeIndex)
 {
-    BVHNode& node  = s_nodes[nodeIndex];
-    uint begin     = node.beginTriIndex;
-    uint end       = begin + node.triSize;
-    uint triCount  = node.triSize;
+    uint begin    = s_nodes[nodeIndex].beginTriIndex;
+    uint end      = begin + s_nodes[nodeIndex].triSize;
+    uint triCount = s_nodes[nodeIndex].triSize;
 
     // Binned SAH split: try all 3 axes, pick minimum cost
     int numBins = std::clamp((int)triCount / 4, BVH_SAH_BINS_MIN, BVH_SAH_BINS_MAX);
@@ -38,10 +37,11 @@ bool trySAHSplit(uint nodeIndex)
         float cmax = -std::numeric_limits<float>::max();
         for (uint i = begin; i < end; i++)
         {
-            const Triangle& tri = s_triangles[s_sortedTris[i]];
-            float c = ((&s_vertices[tri.v[0]].x)[axis] +
-                       (&s_vertices[tri.v[1]].x)[axis] +
-                       (&s_vertices[tri.v[2]].x)[axis]) / 3.0f;
+            uint sortedIndex   = s_triIndex[i];
+            uint triangleIndex = s_sortedTris[sortedIndex];
+            float c = 0.f;
+            for (int j = 0; j < 3; j++) { c += s_vertices[s_triangles[triangleIndex].v[j]][axis]; }
+            c /= 3.0f;
             cmin = std::min(cmin, c);
             cmax = std::max(cmax, c);
         }
@@ -54,16 +54,18 @@ bool trySAHSplit(uint nodeIndex)
 
         for (uint i = begin; i < end; i++)
         {
-            const Triangle& tri = s_triangles[s_sortedTris[i]];
-            const Vertex&   v0  = s_vertices[tri.v[0]];
-            const Vertex&   v1  = s_vertices[tri.v[1]];
-            const Vertex&   v2  = s_vertices[tri.v[2]];
-            float c = ((&v0.x)[axis] + (&v1.x)[axis] + (&v2.x)[axis]) / 3.0f;
-            int b   = std::min((int)((c - cmin) * binScale), numBins - 1);
+            uint sortedIndex   = s_triIndex[i];
+            uint triangleIndex = s_sortedTris[sortedIndex];
+            float c = 0.f;
+            for (int j = 0; j < 3; j++) { c += s_vertices[s_triangles[triangleIndex].v[j]][axis]; }
+            c /= 3.0f;
+            int b = std::min((int)((c - cmin) * binScale), numBins - 1);
             bins[b].count++;
-            bins[b].aabb.extend(glm::vec3(v0.x, v0.y, v0.z));
-            bins[b].aabb.extend(glm::vec3(v1.x, v1.y, v1.z));
-            bins[b].aabb.extend(glm::vec3(v2.x, v2.y, v2.z));
+            for (int j = 0; j < 3; j++)
+            {
+                uint vertexIndex = s_triangles[triangleIndex].v[j];
+                bins[b].aabb.extend(glm::vec3(s_vertices[vertexIndex].x, s_vertices[vertexIndex].y, s_vertices[vertexIndex].z));
+            }
         }
 
         // prefix (left) sweep
@@ -79,7 +81,7 @@ bool trySAHSplit(uint nodeIndex)
         }
 
         // suffix (right) sweep — evaluate each split plane
-        float parentInvArea = 1.0f / node.aabb.half_area();
+        float parentInvArea = 1.0f / s_nodes[nodeIndex].aabb.half_area();
         AABB ra; uint rc = 0;
         for (int b = numBins - 1; b >= 1; b--)
         {
@@ -105,52 +107,50 @@ bool trySAHSplit(uint nodeIndex)
     if (bestAxis == -1)
     {
         // no split improves on the leaf cost
-        node.isLeaf = true;
+        s_nodes[nodeIndex].isLeaf = true;
         return false;
     }
 
-    // partition s_sortedTris[begin..end) around the winning split plane
+    // partition s_triIndex[begin..end) around the winning split plane
     auto mid = std::partition(
-        s_sortedTris.begin() + begin,
-        s_sortedTris.begin() + end,
-        [&](uint triIdx) {
-            const Triangle& tri = s_triangles[triIdx];
-            float c = ((&s_vertices[tri.v[0]].x)[bestAxis] +
-                       (&s_vertices[tri.v[1]].x)[bestAxis] +
-                       (&s_vertices[tri.v[2]].x)[bestAxis]) / 3.0f;
+        s_triIndex.begin() + begin,
+        s_triIndex.begin() + end,
+        [&](uint sortedIndex) {
+            uint triangleIndex = s_sortedTris[sortedIndex];
+            float c = 0.f;
+            for (int j = 0; j < 3; j++) { c += s_vertices[s_triangles[triangleIndex].v[j]][bestAxis]; }
+            c /= 3.0f;
             return std::min((int)((c - bestCMin) * bestScale), numBins - 1) < bestBin;
         });
 
-    uint splitPos = (uint)(mid - s_sortedTris.begin());
+    uint splitPos = (uint)(mid - s_triIndex.begin());
 
     // guard against a degenerate partition (all on one side)
     if (splitPos == begin || splitPos == end)
     {
-        node.isLeaf = true;
+        s_nodes[nodeIndex].isLeaf = true;
         return false;
     }
 
     uint leftIndex  = s_totalNodeCount++;
     uint rightIndex = s_totalNodeCount++;
 
-    node.isLeaf     = false;
-    node.childID[0] = leftIndex;
-    node.childID[1] = rightIndex;
+    s_nodes[nodeIndex].isLeaf     = false;
+    s_nodes[nodeIndex].childID[0] = leftIndex;
+    s_nodes[nodeIndex].childID[1] = rightIndex;
 
-    BVHNode& left        = s_nodes[leftIndex];
-    left.aabb            = computeRangeAABB(begin, splitPos);
-    left.isLeaf          = true;
-    left.beginTriIndex   = begin;
-    left.triSize         = splitPos - begin;
+    s_nodes[leftIndex].aabb           = computeRangeAABB(begin, splitPos);
+    s_nodes[leftIndex].isLeaf         = true;
+    s_nodes[leftIndex].beginTriIndex  = begin;
+    s_nodes[leftIndex].triSize        = splitPos - begin;
 
-    BVHNode& right       = s_nodes[rightIndex];
-    right.aabb           = computeRangeAABB(splitPos, end);
-    right.isLeaf         = true;
-    right.beginTriIndex  = splitPos;
-    right.triSize        = end - splitPos;
+    s_nodes[rightIndex].aabb          = computeRangeAABB(splitPos, end);
+    s_nodes[rightIndex].isLeaf        = true;
+    s_nodes[rightIndex].beginTriIndex = splitPos;
+    s_nodes[rightIndex].triSize       = end - splitPos;
 
-    s_queue.push_back({ leftIndex,  0, true });
-    s_queue.push_back({ rightIndex, 0, true });
+    s_queue.push_back({ leftIndex,  true });
+    s_queue.push_back({ rightIndex, true });
     return true;
 }
 

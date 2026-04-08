@@ -57,13 +57,12 @@ static bool loadMesh(const std::string& path, const glm::mat4& transform)
 
         for (unsigned int fi = 0; fi < aimesh->mNumFaces; fi++)
         {
-            aiFace& face = aimesh->mFaces[fi];
-            if (face.mNumIndices == 3)
+            if (aimesh->mFaces[fi].mNumIndices == 3)
             {
                 Triangle tri;
-                tri.v[0] = vertexOffset + face.mIndices[0];
-                tri.v[1] = vertexOffset + face.mIndices[1];
-                tri.v[2] = vertexOffset + face.mIndices[2];
+                tri.v[0] = vertexOffset + aimesh->mFaces[fi].mIndices[0];
+                tri.v[1] = vertexOffset + aimesh->mFaces[fi].mIndices[1];
+                tri.v[2] = vertexOffset + aimesh->mFaces[fi].mIndices[2];
                 s_triangles.push_back(tri);
             }
         }
@@ -91,13 +90,12 @@ bool initGeos()
     // validate all triangle vertex indices are in bounds
     for (uint i = 0; i < triCount; i++)
     {
-        const Triangle& tri = s_triangles[i];
         for (int k = 0; k < 3; k++)
         {
-            if (tri.v[k] >= vertCount)
+            if (s_triangles[i].v[k] >= vertCount)
             {
                 fprintf(stderr, "Error : triangle %u has out-of-bounds vertex index %u (vertCount=%u) on initGeos()\n",
-                        i, tri.v[k], vertCount);
+                        i, s_triangles[i].v[k], vertCount);
                 return false;
             }
         }
@@ -107,17 +105,16 @@ bool initGeos()
     // does not preserve length, so we re-normalize here
     for (uint i = 0; i < vertCount; i++)
     {
-        Vertex& v   = s_vertices[i];
-        float   len = std::sqrt(v.nx * v.nx + v.ny * v.ny + v.nz * v.nz);
+        float len = std::sqrt(s_vertices[i].nx * s_vertices[i].nx + s_vertices[i].ny * s_vertices[i].ny + s_vertices[i].nz * s_vertices[i].nz);
         if (len > 1e-6f)
         {
-            v.nx /= len;
-            v.ny /= len;
-            v.nz /= len;
+            s_vertices[i].nx /= len;
+            s_vertices[i].ny /= len;
+            s_vertices[i].nz /= len;
         }
         else
         {
-            v.nx = 0.f; v.ny = 1.f; v.nz = 0.f;  // degenerate normal — fallback to up
+            s_vertices[i].nx = 0.f; s_vertices[i].ny = 1.f; s_vertices[i].nz = 0.f;  // degenerate normal — fallback to up
         }
     }
 
