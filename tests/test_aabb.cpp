@@ -428,6 +428,172 @@ static void test_merge()
 }
 
 // ---------------------------------------------------------------------------
+// Tests: clipAABB()
+// ---------------------------------------------------------------------------
+
+static void test_clipAABB()
+{
+    suite("clipAABB()");
+
+    // Left clip: box straddles the plane -- max should be clamped.
+    {
+        AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
+        AABB result = clipAABB(box, 0, 2.0f, true);
+        CHECK(result.valid());
+        CHECK_VEC3(result.min, vec3(0, 0, 0));
+        CHECK_VEC3(result.max, vec3(2, 4, 4));
+    }
+
+    // Right clip: box straddles the plane -- min should be clamped.
+    {
+        AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
+        AABB result = clipAABB(box, 0, 2.0f, false);
+        CHECK(result.valid());
+        CHECK_VEC3(result.min, vec3(2, 0, 0));
+        CHECK_VEC3(result.max, vec3(4, 4, 4));
+    }
+
+    // Box entirely on the correct (left) side -- returned unchanged.
+    {
+        AABB box(vec3(0, 0, 0), vec3(2, 2, 2));
+        AABB result = clipAABB(box, 0, 5.0f, true);
+        CHECK(result.valid());
+        CHECK_VEC3(result.min, vec3(0, 0, 0));
+        CHECK_VEC3(result.max, vec3(2, 2, 2));
+    }
+
+    // Box entirely on the correct (right) side -- returned unchanged.
+    {
+        AABB box(vec3(3, 0, 0), vec3(5, 2, 2));
+        AABB result = clipAABB(box, 0, 1.0f, false);
+        CHECK(result.valid());
+        CHECK_VEC3(result.min, vec3(3, 0, 0));
+        CHECK_VEC3(result.max, vec3(5, 2, 2));
+    }
+
+    // Box entirely on the wrong side (left clip, box is fully right) -- returns invalid.
+    {
+        AABB box(vec3(3, 0, 0), vec3(5, 2, 2));
+        AABB result = clipAABB(box, 0, 2.0f, true);
+        CHECK(!result.valid());
+    }
+
+    // Box entirely on the wrong side (right clip, box is fully left) -- returns invalid.
+    {
+        AABB box(vec3(0, 0, 0), vec3(2, 2, 2));
+        AABB result = clipAABB(box, 0, 3.0f, false);
+        CHECK(!result.valid());
+    }
+
+    // Box with edge exactly on the split plane (left side) -- edge case.
+    {
+        AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
+        AABB result = clipAABB(box, 0, 0.0f, true);
+        // box.min[0] == splitPos, so box is "entirely on the wrong side" returns invalid.
+        CHECK(!result.valid());
+    }
+
+    // Box with max exactly on the split plane (right side) -- returns invalid.
+    {
+        AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
+        AABB result = clipAABB(box, 0, 4.0f, false);
+        // box.max[0] == splitPos, treated as entirely on wrong side.
+        CHECK(!result.valid());
+    }
+
+    // Test on axis 1 (Y).
+    {
+        AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
+        AABB result = clipAABB(box, 1, 3.0f, true);
+        CHECK(result.valid());
+        CHECK_VEC3(result.min, vec3(0, 0, 0));
+        CHECK_VEC3(result.max, vec3(4, 3, 4));
+    }
+
+    // Test on axis 2 (Z).
+    {
+        AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
+        AABB result = clipAABB(box, 2, 1.0f, false);
+        CHECK(result.valid());
+        CHECK_VEC3(result.min, vec3(0, 0, 1));
+        CHECK_VEC3(result.max, vec3(4, 4, 4));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests: clipTriangleToAABB()
+// ---------------------------------------------------------------------------
+
+static void test_clipTriangleToAABB()
+{
+    suite("clipTriangleToAABB()");
+
+    // Triangle entirely inside clip region -- returns triangle's own AABB.
+    {
+        vec3 v0(1, 1, 1);
+        vec3 v1(3, 1, 1);
+        vec3 v2(2, 3, 1);
+        AABB region(vec3(0, 0, 0), vec3(10, 10, 10));
+        AABB result = clipTriangleToAABB(v0, v1, v2, region);
+        CHECK(result.valid());
+        CHECK_VEC3(result.min, vec3(1, 1, 1));
+        CHECK_VEC3(result.max, vec3(3, 3, 1));
+    }
+
+    // Triangle entirely outside clip region -- returns invalid AABB.
+    {
+        vec3 v0(20, 20, 20);
+        vec3 v1(30, 20, 20);
+        vec3 v2(25, 30, 20);
+        AABB region(vec3(0, 0, 0), vec3(10, 10, 10));
+        AABB result = clipTriangleToAABB(v0, v1, v2, region);
+        CHECK(!result.valid());
+    }
+
+    // Triangle straddling one plane (left X plane) -- clipped AABB is tighter.
+    {
+        // Triangle spans x from -2 to 2; clip region starts at x=0.
+        vec3 v0(-2, 0, 0);
+        vec3 v1( 2, 0, 0);
+        vec3 v2( 0, 2, 0);
+        AABB region(vec3(0, -1, -1), vec3(5, 5, 5));
+        AABB result = clipTriangleToAABB(v0, v1, v2, region);
+        CHECK(result.valid());
+        // Clipped portion should not extend to x < 0.
+        CHECK(result.min.x >= 0.0f - 1e-5f);
+        CHECK(result.max.x <= 2.0f + 1e-5f);
+    }
+
+    // Triangle straddling a corner (clipped by 2+ planes).
+    {
+        // Triangle from (-1,-1,0) to (5,5,0); clip region is [0,3]x[0,3]x[-1,1].
+        vec3 v0(-1, -1, 0);
+        vec3 v1( 5, -1, 0);
+        vec3 v2(-1,  5, 0);
+        AABB region(vec3(0, 0, -1), vec3(3, 3, 1));
+        AABB result = clipTriangleToAABB(v0, v1, v2, region);
+        CHECK(result.valid());
+        CHECK(result.min.x >= 0.0f - 1e-5f);
+        CHECK(result.min.y >= 0.0f - 1e-5f);
+        CHECK(result.max.x <= 3.0f + 1e-5f);
+        CHECK(result.max.y <= 3.0f + 1e-5f);
+    }
+
+    // Degenerate: triangle edge exactly on a clip plane.
+    {
+        // One edge lies exactly at x=0 (the min X plane of region).
+        vec3 v0(0, 0, 0);
+        vec3 v1(0, 4, 0);
+        vec3 v2(3, 2, 0);
+        AABB region(vec3(0, 0, -1), vec3(5, 5, 1));
+        AABB result = clipTriangleToAABB(v0, v1, v2, region);
+        CHECK(result.valid());
+        CHECK(result.min.x >= 0.0f - 1e-5f);
+        CHECK(result.max.x <= 3.0f + 1e-5f);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // main
 // ---------------------------------------------------------------------------
 
@@ -444,6 +610,8 @@ int main()
     test_largest_axis();
     test_valid();
     test_merge();
+    test_clipAABB();
+    test_clipTriangleToAABB();
 
     printf("\n==============================\n");
     printf("Results: %d/%d passed", g_passed, g_total);

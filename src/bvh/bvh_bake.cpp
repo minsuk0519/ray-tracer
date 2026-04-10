@@ -25,6 +25,8 @@ std::vector<MortonData>    s_mortonData;
 std::deque<NodeBakingJob>  s_queue;
 std::vector<uint>          s_sortedTris;
 std::vector<uint>          s_triIndex;
+uint                       s_triIndexSize   = 0;
+uint                       s_sortedTrisSize = 0;
 uint                       s_totalNodeCount = 0;
 AABB                       s_sceneAABB;
 
@@ -97,7 +99,7 @@ static bool reorderTriangles()
     // and update beginTriIndex to the new position.
 
     std::vector<Triangle> ordered;
-    ordered.reserve(s_triangles.size());
+    ordered.reserve(s_triIndexSize);
     uint orderedSize = 0;
 
     for (uint i = 0; i < s_totalNodeCount; i++)
@@ -139,6 +141,8 @@ static bool finishBake()
     s_sortedTris.shrink_to_fit();
     s_triIndex.clear();
     s_triIndex.shrink_to_fit();
+    s_triIndexSize   = 0;
+    s_sortedTrisSize = 0;
     s_totalNodeCount = 0;
     s_sceneAABB      = AABB();
     return true;

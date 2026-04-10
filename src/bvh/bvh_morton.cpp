@@ -101,6 +101,9 @@ static bool computeMortonCodes()
         s_triIndex[i]              = i;
     }
 
+    s_triIndexSize   = triCount;
+    s_sortedTrisSize = triCount;
+
     return true;
 }
 

@@ -22,6 +22,8 @@ namespace bvh
     extern std::deque<NodeBakingJob>  s_queue;
     extern std::vector<uint>          s_sortedTris;
     extern std::vector<uint>          s_triIndex;       // reserved for spatial split indirection; mirrors s_sortedTris
+    extern uint                       s_triIndexSize;   // number of used entries in s_triIndex (first triCount slots initialized; grows with spatial splits)
+    extern uint                       s_sortedTrisSize; // number of used entries in s_sortedTris (initially triCount; grows as spatial splits append duplicates)
     extern uint                       s_totalNodeCount;
     extern AABB                       s_sceneAABB;
 }

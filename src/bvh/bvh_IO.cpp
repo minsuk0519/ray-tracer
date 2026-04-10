@@ -90,7 +90,7 @@ bool initGeos()
     // validate all triangle vertex indices are in bounds
     for (uint i = 0; i < triCount; i++)
     {
-        for (int k = 0; k < 3; k++)
+        for (uint k = 0; k < 3; k++)
         {
             if (s_triangles[i].v[k] >= vertCount)
             {
@@ -105,7 +105,7 @@ bool initGeos()
     // does not preserve length, so we re-normalize here
     for (uint i = 0; i < vertCount; i++)
     {
-        float len = std::sqrt(s_vertices[i].nx * s_vertices[i].nx + s_vertices[i].ny * s_vertices[i].ny + s_vertices[i].nz * s_vertices[i].nz);
+        float len = std::hypot(s_vertices[i].nx, s_vertices[i].ny, s_vertices[i].nz);
         if (len > 1e-6f)
         {
             s_vertices[i].nx /= len;
@@ -114,7 +114,9 @@ bool initGeos()
         }
         else
         {
-            s_vertices[i].nx = 0.f; s_vertices[i].ny = 1.f; s_vertices[i].nz = 0.f;  // degenerate normal — fallback to up
+            s_vertices[i].nx = 0.f;  // degenerate normal — fallback to up
+            s_vertices[i].ny = 1.f;
+            s_vertices[i].nz = 0.f;
         }
     }
 

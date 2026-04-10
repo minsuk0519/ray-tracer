@@ -24,3 +24,6 @@ struct AABB
 };
 
 AABB merge(const AABB& a, const AABB& b);
+
+AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide);
+AABB clipTriangleToAABB(vec3 v0, vec3 v1, vec3 v2, const AABB& clipRegion);
