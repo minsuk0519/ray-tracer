@@ -2,6 +2,7 @@
 #include "bvh.hpp"
 #include "bvh_bake_state.hpp"
 #include "bvh_IO.hpp"
+#include "bvh_geo.hpp"
 
 #include <vector>
 #include <string>
@@ -16,6 +17,7 @@
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtx/quaternion.hpp"
+#include "glm/gtc/quaternion.hpp"
 
 namespace bvh
 {
@@ -145,7 +147,59 @@ bool readScene()
     {
         std::istringstream iss(line);
         std::string token;
-        if (!(iss >> token) || token != "mesh")
+        if (!(iss >> token))
+        {
+            continue;
+        }
+
+        if (token == "sphere")
+        {
+            // syntax: sphere <cx> <cy> <cz> <radius> [<rings> <sectors>]
+            float cx, cy, cz, radius;
+            if (!(iss >> cx >> cy >> cz >> radius))
+            {
+                fprintf(stderr, "Error : malformed sphere line on readScene()\n");
+                continue;
+            }
+
+            int rings   = 16;
+            int sectors = 32;
+            int r, s;
+            if (iss >> r >> s)
+            {
+                rings   = r;
+                sectors = s;
+            }
+
+            addSphere(glm::vec3(cx, cy, cz), radius, rings, sectors);
+            fprintf(stdout, "Info : Added Sphere\n");
+            continue;
+        }
+
+        if (token == "box")
+        {
+            // syntax: box <cx> <cy> <cz> <hx> <hy> <hz> q <qx> <qy> <qz> <qw>
+            float cx, cy, cz, hx, hy, hz;
+            std::string orientType;
+            float qx, qy, qz, qw;
+            if (!(iss >> cx >> cy >> cz >> hx >> hy >> hz >> orientType >> qx >> qy >> qz >> qw))
+            {
+                fprintf(stderr, "Error : malformed box line on readScene()\n");
+                continue;
+            }
+
+            if (orientType != "q")
+            {
+                fprintf(stderr, "Warning : unknown orientation type '%s', defaulting to identity on readScene()\n", orientType.c_str());
+                qx = 0.f; qy = 0.f; qz = 0.f; qw = 1.f;
+            }
+
+            addBox(glm::vec3(cx, cy, cz), glm::vec3(hx, hy, hz), glm::quat(qw, qx, qy, qz));
+            fprintf(stdout, "Info : Added Box\n");
+            continue;
+        }
+
+        if (token != "mesh")
         {
             continue;
         }

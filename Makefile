@@ -31,6 +31,7 @@ SRCS = src/main.cpp \
        src/bvh/bvh_IO.cpp \
        src/bvh/bvh_morton.cpp \
        src/bvh/bvh_sah.cpp \
+       src/bvh/bvh_geo.cpp \
        src/bvh/AABB.cpp
 
 OBJS = $(patsubst %.cpp,%.o,$(SRCS))
