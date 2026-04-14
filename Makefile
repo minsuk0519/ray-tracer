@@ -15,6 +15,7 @@ CXXFLAGS = $(OPTIMIZE) -std=c++2b \
            -I$(LIBDIR)/glm \
            -I$(LIBDIR)/stb \
            -I$(ASSIMPDIR)/include \
+           -DGLM_ENABLE_EXPERIMENTAL \
            -Wnarrowing
 
 # Use locally built assimp if libs/assimp/lib exists, otherwise fall back
@@ -32,7 +33,8 @@ SRCS = src/main.cpp \
        src/bvh/bvh_morton.cpp \
        src/bvh/bvh_sah.cpp \
        src/bvh/bvh_geo.cpp \
-       src/bvh/AABB.cpp
+       src/bvh/AABB.cpp \
+       src/bvh/bvh_traverse.cpp
 
 OBJS = $(patsubst %.cpp,%.o,$(SRCS))
 

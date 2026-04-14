@@ -112,14 +112,16 @@ void addSphere(glm::vec3 center, float radius, int rings, int sectors)
         }
     }
 
-    // Bottom cap: south_pole -> ring[rings-1][s] -> ring[rings-1][s+1]
+    // Bottom cap: south_pole -> ring[rings-1][s+1] -> ring[rings-1][s]
+    // Winding is reversed relative to the top cap so back-face culling (reject a>=0)
+    // correctly accepts external hits from below the sphere.
     for (int s = 0; s < sectors; s++)
     {
         int sNext = (s + 1) % sectors;
         Triangle tri;
         tri.v[0] = southPole;
-        tri.v[1] = ringVert(vertexOffset, rings - 1, s,     sectors);
-        tri.v[2] = ringVert(vertexOffset, rings - 1, sNext, sectors);
+        tri.v[1] = ringVert(vertexOffset, rings - 1, sNext, sectors);
+        tri.v[2] = ringVert(vertexOffset, rings - 1, s,     sectors);
         s_triangles.push_back(tri);
     }
 }

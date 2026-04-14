@@ -14,6 +14,13 @@
 namespace bvh
 {
 
+static inline float vertexCoord(const Vertex& v, int axis)
+{
+    if (axis == 0) { return v.x; }
+    if (axis == 1) { return v.y; }
+    return v.z;
+}
+
 bool trySAHSplit(uint nodeIndex)
 {
     uint begin    = s_nodes[nodeIndex].beginTriIndex;
@@ -55,7 +62,7 @@ bool trySAHSplit(uint nodeIndex)
             float c = 0.f;
             for (int j = 0; j < 3; j++)
             {
-                c += s_vertices[s_triangles[triangleIndex].v[j]][axis];
+                c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], axis);
             }
             c /= 3.0f;
             cmin = std::min(cmin, c);
@@ -80,7 +87,7 @@ bool trySAHSplit(uint nodeIndex)
             float c = 0.f;
             for (int j = 0; j < 3; j++)
             {
-                c += s_vertices[s_triangles[triangleIndex].v[j]][axis];
+                c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], axis);
             }
             c /= 3.0f;
             int b = std::min((int)((c - cmin) * binScale), numBins - 1);
@@ -270,7 +277,7 @@ bool trySAHSplit(uint nodeIndex)
                 float c = 0.f;
                 for (int j = 0; j < 3; j++)
                 {
-                    c += s_vertices[s_triangles[triangleIndex].v[j]][bestAxis];
+                    c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], bestAxis);
                 }
                 c /= 3.0f;
                 return std::min((int)((c - bestCMin) * bestScale), numBins - 1) < bestBin;
@@ -377,7 +384,7 @@ bool trySAHSplit(uint nodeIndex)
                 float c = 0.f;
                 for (int j = 0; j < 3; j++)
                 {
-                    c += s_vertices[s_triangles[triangleIndex].v[j]][bestAxis];
+                    c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], bestAxis);
                 }
                 c /= 3.0f;
                 return std::min((int)((c - bestCMin) * bestScale), numBins - 1) < bestBin;
