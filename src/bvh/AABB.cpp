@@ -70,7 +70,7 @@ AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
             return AABB();
         }
         AABB result = box;
-        result.max[axis] = math::min(box.max[axis], splitPos);
+        result.max[axis] = std::min(box.max[axis], splitPos);
         return result;
     }
     else
@@ -82,7 +82,7 @@ AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
             return AABB();
         }
         AABB result = box;
-        result.min[axis] = math::max(box.min[axis], splitPos);
+        result.min[axis] = std::max(box.min[axis], splitPos);
         return result;
     }
 }
