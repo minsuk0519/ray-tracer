@@ -7,7 +7,6 @@
 #include <limits>
 #include <cmath>
 
-#include "glm/glm.hpp"
 
 namespace bvh
 {
@@ -45,15 +44,15 @@ static float rayAABB(const Ray& ray, const AABB& box, float tmax)
 
 struct TriHit { float t, u, v; };
 
-static TriHit rayTriangle(const Ray& ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 v2)
+static TriHit rayTriangle(const Ray& ray, math::vec3 v0, math::vec3 v1, math::vec3 v2)
 {
     const float inf = std::numeric_limits<float>::infinity();
     const TriHit miss = { inf, 0.f, 0.f };
 
-    glm::vec3 e1 = v1 - v0;
-    glm::vec3 e2 = v2 - v0;
-    glm::vec3 h  = glm::cross(ray.dir, e2);
-    float     a  = glm::dot(e1, h);
+    math::vec3 e1 = v1 - v0;
+    math::vec3 e2 = v2 - v0;
+    math::vec3 h  = math::cross(ray.dir, e2);
+    float     a  = math::dot(e1, h);
 
     if (a >= 0)
     {
@@ -61,23 +60,23 @@ static TriHit rayTriangle(const Ray& ray, glm::vec3 v0, glm::vec3 v1, glm::vec3 
     }
 
     float     f = 1.f / a;
-    glm::vec3 s = ray.origin - v0;
-    float     u = f * glm::dot(s, h);
+    math::vec3 s = ray.origin - v0;
+    float     u = f * math::dot(s, h);
 
     if (u < 0.f || u > 1.f)
     {
         return miss;
     }
 
-    glm::vec3 q = glm::cross(s, e1);
-    float     v = f * glm::dot(ray.dir, q);
+    math::vec3 q = math::cross(s, e1);
+    float     v = f * math::dot(ray.dir, q);
 
     if (v < 0.f || u + v > 1.f)
     {
         return miss;
     }
 
-    float t = f * glm::dot(e2, q);
+    float t = f * math::dot(e2, q);
 
     if (t < ray.tmin || t > ray.tmax)
     {
@@ -119,9 +118,9 @@ static Hit traverse(const Ray& ray)
                 uint vi1 = t_tris[ti].v[1];
                 uint vi2 = t_tris[ti].v[2];
 
-                glm::vec3 p0 = glm::vec3(t_verts[vi0].x, t_verts[vi0].y, t_verts[vi0].z);
-                glm::vec3 p1 = glm::vec3(t_verts[vi1].x, t_verts[vi1].y, t_verts[vi1].z);
-                glm::vec3 p2 = glm::vec3(t_verts[vi2].x, t_verts[vi2].y, t_verts[vi2].z);
+                math::vec3 p0 = math::vec3(t_verts[vi0].x, t_verts[vi0].y, t_verts[vi0].z);
+                math::vec3 p1 = math::vec3(t_verts[vi1].x, t_verts[vi1].y, t_verts[vi1].z);
+                math::vec3 p2 = math::vec3(t_verts[vi2].x, t_verts[vi2].y, t_verts[vi2].z);
 
                 TriHit th = rayTriangle(ray, p0, p1, p2);
                 if (th.t < bestT)
@@ -134,10 +133,10 @@ static Hit traverse(const Ray& ray)
                     best.triIndex = ti;
 
                     float  w  = 1.f - th.u - th.v;
-                    glm::vec3 n0 = glm::vec3(t_verts[vi0].nx, t_verts[vi0].ny, t_verts[vi0].nz);
-                    glm::vec3 n1 = glm::vec3(t_verts[vi1].nx, t_verts[vi1].ny, t_verts[vi1].nz);
-                    glm::vec3 n2 = glm::vec3(t_verts[vi2].nx, t_verts[vi2].ny, t_verts[vi2].nz);
-                    best.normal   = glm::normalize(w * n0 + th.u * n1 + th.v * n2);
+                    math::vec3 n0 = math::vec3(t_verts[vi0].nx, t_verts[vi0].ny, t_verts[vi0].nz);
+                    math::vec3 n1 = math::vec3(t_verts[vi1].nx, t_verts[vi1].ny, t_verts[vi1].nz);
+                    math::vec3 n2 = math::vec3(t_verts[vi2].nx, t_verts[vi2].ny, t_verts[vi2].nz);
+                    best.normal   = math::normalize(w * n0 + th.u * n1 + th.v * n2);
                 }
             }
         }

@@ -14,17 +14,14 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "glm/glm.hpp"
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtx/quaternion.hpp"
-#include "glm/gtc/quaternion.hpp"
+#include "../math/math.hpp"
 
 namespace bvh
 {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-static bool loadMesh(const std::string& path, const glm::mat4& transform)
+static bool loadMesh(const std::string& path, const math::mat4& transform)
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path,
@@ -36,7 +33,7 @@ static bool loadMesh(const std::string& path, const glm::mat4& transform)
         return false;
     }
 
-    glm::mat4 normalTransform = glm::transpose(glm::inverse(transform));
+    math::mat4 normalTransform = math::transpose(math::inverse(transform));
 
     for (unsigned int mi = 0; mi < scene->mNumMeshes; mi++)
     {
@@ -48,8 +45,8 @@ static bool loadMesh(const std::string& path, const glm::mat4& transform)
             aiVector3D p = aimesh->mVertices[vi];
             aiVector3D n = aimesh->mNormals[vi];
 
-            glm::vec4 tp = transform       * glm::vec4(p.x, p.y, p.z, 1.0f);
-            glm::vec4 tn = normalTransform * glm::vec4(n.x, n.y, n.z, 0.0f);
+            math::vec4 tp = transform       * math::vec4(p.x, p.y, p.z, 1.0f);
+            math::vec4 tn = normalTransform * math::vec4(n.x, n.y, n.z, 0.0f);
 
             Vertex v;
             v.x  = tp.x; v.y  = tp.y; v.z  = tp.z;
@@ -171,7 +168,7 @@ bool readScene()
                 sectors = s;
             }
 
-            addSphere(glm::vec3(cx, cy, cz), radius, rings, sectors);
+            addSphere(math::vec3(cx, cy, cz), radius, rings, sectors);
             fprintf(stdout, "Info : Added Sphere\n");
             continue;
         }
@@ -194,7 +191,7 @@ bool readScene()
                 qx = 0.f; qy = 0.f; qz = 0.f; qw = 1.f;
             }
 
-            addBox(glm::vec3(cx, cy, cz), glm::vec3(hx, hy, hz), glm::quat(qw, qx, qy, qz));
+            addBox(math::vec3(cx, cy, cz), math::vec3(hx, hy, hz), math::quat(qw, qx, qy, qz));
             fprintf(stdout, "Info : Added Box\n");
             continue;
         }
@@ -226,10 +223,10 @@ bool readScene()
 
         fprintf(stdout, "Info : Found Mesh : %s\n", meshPath.c_str());
 
-        glm::mat4 transform =
-            glm::translate(glm::mat4(1.f), glm::vec3(tx, ty, tz)) *
-            glm::scale(glm::mat4(1.f), glm::vec3(scale)) *
-            glm::toMat4(glm::quat(qw, qx, qy, qz));
+        math::mat4 transform =
+            math::translate(math::mat4(1.f), math::vec3(tx, ty, tz)) *
+            math::scale(math::mat4(1.f), math::vec3(scale)) *
+            math::toMat4(math::quat(qw, qx, qy, qz));
 
         if (!loadMesh(meshPath, transform))
         {

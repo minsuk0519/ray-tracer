@@ -1,9 +1,8 @@
 #pragma once
 
-#include "glm/glm.hpp"
-#include "glm/gtc/constants.hpp"
+#include "../math/math.hpp"
 
-using glm::vec3;
+using math::vec3;
 
 enum class Axis { AXIS_X = 0, AXIS_Y = 1, AXIS_Z = 2 };
 

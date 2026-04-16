@@ -6,7 +6,7 @@
 #include "bvh_bfs.hpp"
 #include "bvh_sah.hpp"
 
-#include "glm/glm.hpp"
+#include "../math/math.hpp"
 
 namespace bvh
 {
@@ -21,7 +21,7 @@ AABB computeRangeAABB(uint begin, uint end)
         for (int j = 0; j < 3; j++)
         {
             uint vertexIndex = s_triangles[triangleIndex].v[j];
-            aabb.extend(glm::vec3(s_vertices[vertexIndex].x, s_vertices[vertexIndex].y, s_vertices[vertexIndex].z));
+            aabb.extend(math::vec3(s_vertices[vertexIndex].x, s_vertices[vertexIndex].y, s_vertices[vertexIndex].z));
         }
     }
     return aabb;

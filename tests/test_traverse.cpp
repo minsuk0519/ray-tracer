@@ -1,7 +1,7 @@
 // test_traverse.cpp -- full pipeline integration tests for BVH traversal
 //
 // Build (from tests/):
-//   g++ -std=c++2b -I../src/bvh -I../libs/glm -I../libs/assimp/include \
+//   g++ -std=c++2b -I../src/bvh -I../src -I../libs/assimp/include \
 //       -o test_traverse test_traverse.cpp \
 //       ../src/bvh/bvh_traverse.cpp \
 //       ../src/bvh/bvh_bake.cpp \
@@ -105,8 +105,8 @@ static bvh::Ray makeRay(float ox, float oy, float oz,
                          float dx, float dy, float dz)
 {
     bvh::Ray r;
-    r.origin = glm::vec3(ox, oy, oz);
-    r.dir    = glm::normalize(glm::vec3(dx, dy, dz));
+    r.origin = math::vec3(ox, oy, oz);
+    r.dir    = math::normalize(math::vec3(dx, dy, dz));
     return r;
 }
 

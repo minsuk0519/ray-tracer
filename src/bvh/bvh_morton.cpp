@@ -4,7 +4,7 @@
 #include "bvh_bake_types.hpp"
 #include "bvh_morton.hpp"
 
-#include "glm/glm.hpp"
+#include "../math/math.hpp"
 
 #include <vector>
 #include <cassert>
@@ -54,14 +54,14 @@ static bool computeMortonCodes()
         const Vertex&   v1  = s_vertices[tri.v[1]];
         const Vertex&   v2  = s_vertices[tri.v[2]];
 
-        s_sceneAABB.extend(glm::vec3(v0.x, v0.y, v0.z));
-        s_sceneAABB.extend(glm::vec3(v1.x, v1.y, v1.z));
-        s_sceneAABB.extend(glm::vec3(v2.x, v2.y, v2.z));
+        s_sceneAABB.extend(math::vec3(v0.x, v0.y, v0.z));
+        s_sceneAABB.extend(math::vec3(v1.x, v1.y, v1.z));
+        s_sceneAABB.extend(math::vec3(v2.x, v2.y, v2.z));
     }
 
     // pass 2: compute centroids, quantize directly, pack Morton codes
-    glm::vec3 sceneMin  = s_sceneAABB.min;
-    glm::vec3 sceneSize = s_sceneAABB.max - s_sceneAABB.min;
+    math::vec3 sceneMin  = s_sceneAABB.min;
+    math::vec3 sceneSize = s_sceneAABB.max - s_sceneAABB.min;
     if (sceneSize.x == 0.f)
     {
         sceneSize.x = 1.f;

@@ -7,18 +7,18 @@ AABB::AABB() :
     max(vec3(-std::numeric_limits<float>::infinity())) {}
 
 AABB::AABB(vec3 p1, vec3 p2) : 
-    min(glm::min(p1, p2)), max(glm::max(p1, p2)) {}
+    min(math::min(p1, p2)), max(math::max(p1, p2)) {}
 
 void AABB::extend(vec3 p)
 {
-    min = glm::min(min, p);
-    max = glm::max(max, p);
+    min = math::min(min, p);
+    max = math::max(max, p);
 }
 
 void AABB::extend(const AABB& b)
 {
-    min = glm::min(min, b.min);
-    max = glm::max(max, b.max);
+    min = math::min(min, b.min);
+    max = math::max(max, b.max);
 }
 
 vec3 AABB::center() const
@@ -54,8 +54,8 @@ bool AABB::valid() const
 AABB merge(const AABB& a, const AABB& b)
 {
     AABB result;
-    result.min = glm::min(a.min, b.min);
-    result.max = glm::max(a.max, b.max);
+    result.min = math::min(a.min, b.min);
+    result.max = math::max(a.max, b.max);
     return result;
 }
 
@@ -70,7 +70,7 @@ AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
             return AABB();
         }
         AABB result = box;
-        result.max[axis] = glm::min(box.max[axis], splitPos);
+        result.max[axis] = math::min(box.max[axis], splitPos);
         return result;
     }
     else
@@ -82,7 +82,7 @@ AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
             return AABB();
         }
         AABB result = box;
-        result.min[axis] = glm::max(box.min[axis], splitPos);
+        result.min[axis] = math::max(box.min[axis], splitPos);
         return result;
     }
 }

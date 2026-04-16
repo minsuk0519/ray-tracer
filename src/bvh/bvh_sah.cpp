@@ -5,7 +5,7 @@
 #include "bvh_sah.hpp"
 #include "bvh_bfs.hpp"
 
-#include "glm/glm.hpp"
+#include "../math/math.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -95,7 +95,7 @@ bool trySAHSplit(uint nodeIndex)
             for (int j = 0; j < 3; j++)
             {
                 uint vertexIndex = s_triangles[triangleIndex].v[j];
-                bins[b].aabb.extend(glm::vec3(s_vertices[vertexIndex].x, s_vertices[vertexIndex].y, s_vertices[vertexIndex].z));
+                bins[b].aabb.extend(math::vec3(s_vertices[vertexIndex].x, s_vertices[vertexIndex].y, s_vertices[vertexIndex].z));
             }
         }
 
@@ -184,11 +184,11 @@ bool trySAHSplit(uint nodeIndex)
 
             // Build triangle AABB from vertices
             AABB triAABB;
-            glm::vec3 verts[3];
+            math::vec3 verts[3];
             for (int j = 0; j < 3; j++)
             {
                 uint vi = s_triangles[triangleIndex].v[j];
-                verts[j] = glm::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z);
+                verts[j] = math::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z);
                 triAABB.extend(verts[j]);
             }
 
@@ -333,7 +333,7 @@ bool trySAHSplit(uint nodeIndex)
             for (int j = 0; j < 3; j++)
             {
                 uint vi = s_triangles[triangleIndex].v[j];
-                triAABB.extend(glm::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z));
+                triAABB.extend(math::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z));
             }
             return triAABB.max[bestAxis] <= splitPlane;
         });
@@ -350,7 +350,7 @@ bool trySAHSplit(uint nodeIndex)
             for (int j = 0; j < 3; j++)
             {
                 uint vi = s_triangles[triangleIndex].v[j];
-                triAABB.extend(glm::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z));
+                triAABB.extend(math::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z));
             }
             // Straddling if not entirely right-only (i.e., min < splitPlane)
             return triAABB.min[bestAxis] < splitPlane;

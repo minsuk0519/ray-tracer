@@ -1,7 +1,7 @@
 // test_geo.cpp -- unit tests for bvh_geo.cpp (addSphere / addBox)
 //
 // Build (from tests/):
-//   g++ -std=c++2b -I../src/bvh -I../libs/glm -o test_geo test_geo.cpp ../src/bvh/bvh_geo.cpp ../src/bvh/AABB.cpp
+//   g++ -std=c++2b -I../src/bvh -I../src -o test_geo test_geo.cpp ../src/bvh/bvh_geo.cpp ../src/bvh/AABB.cpp
 // Run:
 //   ./test_geo
 
@@ -80,7 +80,7 @@ static void clearState()
     bvh::s_triangles.clear();
 }
 
-static float vec3len(glm::vec3 v)
+static float vec3len(math::vec3 v)
 {
     return sqrtf(v.x*v.x + v.y*v.y + v.z*v.z);
 }
@@ -108,10 +108,10 @@ static bool noDegenTris()
         uint i0 = bvh::s_triangles[i].v[0];
         uint i1 = bvh::s_triangles[i].v[1];
         uint i2 = bvh::s_triangles[i].v[2];
-        glm::vec3 p0(bvh::s_vertices[i0].x, bvh::s_vertices[i0].y, bvh::s_vertices[i0].z);
-        glm::vec3 p1(bvh::s_vertices[i1].x, bvh::s_vertices[i1].y, bvh::s_vertices[i1].z);
-        glm::vec3 p2(bvh::s_vertices[i2].x, bvh::s_vertices[i2].y, bvh::s_vertices[i2].z);
-        glm::vec3 cross = glm::cross(p1 - p0, p2 - p0);
+        math::vec3 p0(bvh::s_vertices[i0].x, bvh::s_vertices[i0].y, bvh::s_vertices[i0].z);
+        math::vec3 p1(bvh::s_vertices[i1].x, bvh::s_vertices[i1].y, bvh::s_vertices[i1].z);
+        math::vec3 p2(bvh::s_vertices[i2].x, bvh::s_vertices[i2].y, bvh::s_vertices[i2].z);
+        math::vec3 cross = math::cross(p1 - p0, p2 - p0);
         if (vec3len(cross) <= 1e-6f)
         {
             return false;
@@ -170,7 +170,7 @@ static void test_sphere_geometry()
     suite("sphere geometry (rings=4, sectors=6, radius=3, center=(1,2,3))");
 
     const float    radius = 3.f;
-    const glm::vec3 center(1.f, 2.f, 3.f);
+    const math::vec3 center(1.f, 2.f, 3.f);
     const float eps_surf = 1e-4f;
     const float eps_unit = 1e-5f;
 
@@ -184,9 +184,9 @@ static void test_sphere_geometry()
 
     for (uint i = 0; i < (uint)bvh::s_vertices.size(); i++)
     {
-        glm::vec3 pos(bvh::s_vertices[i].x, bvh::s_vertices[i].y, bvh::s_vertices[i].z);
-        glm::vec3 nor(bvh::s_vertices[i].nx, bvh::s_vertices[i].ny, bvh::s_vertices[i].nz);
-        glm::vec3 dir = pos - center;
+        math::vec3 pos(bvh::s_vertices[i].x, bvh::s_vertices[i].y, bvh::s_vertices[i].z);
+        math::vec3 nor(bvh::s_vertices[i].nx, bvh::s_vertices[i].ny, bvh::s_vertices[i].nz);
+        math::vec3 dir = pos - center;
         float dist = vec3len(dir);
 
         if (fabsf(dist - radius) > eps_surf)
@@ -198,7 +198,7 @@ static void test_sphere_geometry()
             allNormUnit = false;
         }
 
-        glm::vec3 outward = (dist > 1e-6f) ? (dir / dist) : glm::vec3(0,1,0);
+        math::vec3 outward = (dist > 1e-6f) ? (dir / dist) : math::vec3(0,1,0);
         float d = nor.x*outward.x + nor.y*outward.y + nor.z*outward.z;
         if (d <= 0.f)
         {
@@ -251,13 +251,13 @@ static void test_box_counts()
     suite("box counts");
 
     clearState();
-    bvh::addBox({0,0,0}, {1,1,1}, glm::quat(1,0,0,0));
+    bvh::addBox({0,0,0}, {1,1,1}, math::quat(1,0,0,0));
     CHECK_EQ((int)bvh::s_vertices.size(),  24);
     CHECK_EQ((int)bvh::s_triangles.size(), 12);
 
     // Non-uniform extents -- same counts
     clearState();
-    bvh::addBox({0,0,0}, {2,5,3}, glm::quat(1,0,0,0));
+    bvh::addBox({0,0,0}, {2,5,3}, math::quat(1,0,0,0));
     CHECK_EQ((int)bvh::s_vertices.size(),  24);
     CHECK_EQ((int)bvh::s_triangles.size(), 12);
 }
@@ -270,12 +270,12 @@ static void test_box_geometry_identity()
 {
     suite("box geometry (he=(1,2,3), center=(5,0,-3), identity rotation)");
 
-    const glm::vec3 center(5.f, 0.f, -3.f);
-    const glm::vec3 he(1.f, 2.f, 3.f);
+    const math::vec3 center(5.f, 0.f, -3.f);
+    const math::vec3 he(1.f, 2.f, 3.f);
     const float eps = 1e-4f;
 
     clearState();
-    bvh::addBox(center, he, glm::quat(1,0,0,0));
+    bvh::addBox(center, he, math::quat(1,0,0,0));
 
     bool allNormUnit    = true;
     bool allOnFacePlane = true;
@@ -283,15 +283,15 @@ static void test_box_geometry_identity()
 
     for (uint i = 0; i < (uint)bvh::s_vertices.size(); i++)
     {
-        glm::vec3 pos(bvh::s_vertices[i].x, bvh::s_vertices[i].y, bvh::s_vertices[i].z);
-        glm::vec3 nor(bvh::s_vertices[i].nx, bvh::s_vertices[i].ny, bvh::s_vertices[i].nz);
+        math::vec3 pos(bvh::s_vertices[i].x, bvh::s_vertices[i].y, bvh::s_vertices[i].z);
+        math::vec3 nor(bvh::s_vertices[i].nx, bvh::s_vertices[i].ny, bvh::s_vertices[i].nz);
 
         if (fabsf(vec3len(nor) - 1.f) > 1e-5f)
         {
             allNormUnit = false;
         }
 
-        glm::vec3 local = pos - center;
+        math::vec3 local = pos - center;
 
         // Each vertex must lie exactly on one face plane
         bool onX = fabsf(fabsf(local.x) - he.x) <= eps;
@@ -326,9 +326,9 @@ static void test_box_geometry_rotated()
 
     // 90 degree rotation around Y: quat = (cos45, 0, sin45, 0)
     const float half = sqrtf(0.5f);
-    glm::quat orient(half, 0.f, half, 0.f);
-    const glm::vec3 center(0.f, 0.f, 0.f);
-    const glm::vec3 he(1.f, 1.f, 1.f);
+    math::quat orient(half, 0.f, half, 0.f);
+    const math::vec3 center(0.f, 0.f, 0.f);
+    const math::vec3 he(1.f, 1.f, 1.f);
 
     clearState();
     bvh::addBox(center, he, orient);
@@ -338,8 +338,8 @@ static void test_box_geometry_rotated()
 
     for (uint i = 0; i < (uint)bvh::s_vertices.size(); i++)
     {
-        glm::vec3 pos(bvh::s_vertices[i].x, bvh::s_vertices[i].y, bvh::s_vertices[i].z);
-        glm::vec3 nor(bvh::s_vertices[i].nx, bvh::s_vertices[i].ny, bvh::s_vertices[i].nz);
+        math::vec3 pos(bvh::s_vertices[i].x, bvh::s_vertices[i].y, bvh::s_vertices[i].z);
+        math::vec3 nor(bvh::s_vertices[i].nx, bvh::s_vertices[i].ny, bvh::s_vertices[i].nz);
 
         if (fabsf(vec3len(nor) - 1.f) > 1e-5f)
         {
@@ -370,8 +370,8 @@ static void test_box_appends()
     suite("box appends to existing state");
 
     clearState();
-    bvh::addBox({0,0,0}, {1,1,1}, glm::quat(1,0,0,0));
-    bvh::addBox({5,0,0}, {1,1,1}, glm::quat(1,0,0,0));
+    bvh::addBox({0,0,0}, {1,1,1}, math::quat(1,0,0,0));
+    bvh::addBox({5,0,0}, {1,1,1}, math::quat(1,0,0,0));
 
     CHECK_EQ((int)bvh::s_vertices.size(),  48);
     CHECK_EQ((int)bvh::s_triangles.size(), 24);

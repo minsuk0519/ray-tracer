@@ -5,9 +5,6 @@
 
 #include <cmath>
 
-#include "glm/glm.hpp"
-#include "glm/gtc/constants.hpp"
-#include "glm/gtc/quaternion.hpp"
 
 namespace bvh
 {
@@ -27,10 +24,10 @@ static uint ringVert(uint vertexOffset, int r, int s, int sectors)
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-void addSphere(glm::vec3 center, float radius, int rings, int sectors)
+void addSphere(math::vec3 center, float radius, int rings, int sectors)
 {
     const uint vertexOffset = (uint)s_vertices.size();
-    const float pi  = glm::pi<float>();
+    const float pi  = math::pi;
 
     // North pole — vertex 0
     {
@@ -126,7 +123,7 @@ void addSphere(glm::vec3 center, float radius, int rings, int sectors)
     }
 }
 
-void addBox(glm::vec3 center, glm::vec3 he, glm::quat orient)
+void addBox(math::vec3 center, math::vec3 he, math::quat orient)
 {
     // 6 faces: +X, -X, +Y, -Y, +Z, -Z
     // Each face has 4 unique vertices and 2 triangles.
@@ -135,63 +132,63 @@ void addBox(glm::vec3 center, glm::vec3 he, glm::quat orient)
     // Face definitions: normal direction and 4 corner offsets (in local unrotated frame)
     struct FaceDef
     {
-        glm::vec3 normal;
-        glm::vec3 corners[4];
+        math::vec3 normal;
+        math::vec3 corners[4];
     };
 
     FaceDef faces[6];
 
     // +X face (normal = +X, x = +he.x)
-    faces[0].normal     = glm::vec3( 1, 0, 0);
-    faces[0].corners[0] = glm::vec3( he.x,  he.y, -he.z);
-    faces[0].corners[1] = glm::vec3( he.x, -he.y, -he.z);
-    faces[0].corners[2] = glm::vec3( he.x, -he.y,  he.z);
-    faces[0].corners[3] = glm::vec3( he.x,  he.y,  he.z);
+    faces[0].normal     = math::vec3( 1, 0, 0);
+    faces[0].corners[0] = math::vec3( he.x,  he.y, -he.z);
+    faces[0].corners[1] = math::vec3( he.x, -he.y, -he.z);
+    faces[0].corners[2] = math::vec3( he.x, -he.y,  he.z);
+    faces[0].corners[3] = math::vec3( he.x,  he.y,  he.z);
 
     // -X face (normal = -X, x = -he.x)
-    faces[1].normal     = glm::vec3(-1, 0, 0);
-    faces[1].corners[0] = glm::vec3(-he.x,  he.y,  he.z);
-    faces[1].corners[1] = glm::vec3(-he.x, -he.y,  he.z);
-    faces[1].corners[2] = glm::vec3(-he.x, -he.y, -he.z);
-    faces[1].corners[3] = glm::vec3(-he.x,  he.y, -he.z);
+    faces[1].normal     = math::vec3(-1, 0, 0);
+    faces[1].corners[0] = math::vec3(-he.x,  he.y,  he.z);
+    faces[1].corners[1] = math::vec3(-he.x, -he.y,  he.z);
+    faces[1].corners[2] = math::vec3(-he.x, -he.y, -he.z);
+    faces[1].corners[3] = math::vec3(-he.x,  he.y, -he.z);
 
     // +Y face (normal = +Y, y = +he.y)
-    faces[2].normal     = glm::vec3(0,  1, 0);
-    faces[2].corners[0] = glm::vec3(-he.x, he.y, -he.z);
-    faces[2].corners[1] = glm::vec3(-he.x, he.y,  he.z);
-    faces[2].corners[2] = glm::vec3( he.x, he.y,  he.z);
-    faces[2].corners[3] = glm::vec3( he.x, he.y, -he.z);
+    faces[2].normal     = math::vec3(0,  1, 0);
+    faces[2].corners[0] = math::vec3(-he.x, he.y, -he.z);
+    faces[2].corners[1] = math::vec3(-he.x, he.y,  he.z);
+    faces[2].corners[2] = math::vec3( he.x, he.y,  he.z);
+    faces[2].corners[3] = math::vec3( he.x, he.y, -he.z);
 
     // -Y face (normal = -Y, y = -he.y)
-    faces[3].normal     = glm::vec3(0, -1, 0);
-    faces[3].corners[0] = glm::vec3(-he.x, -he.y,  he.z);
-    faces[3].corners[1] = glm::vec3(-he.x, -he.y, -he.z);
-    faces[3].corners[2] = glm::vec3( he.x, -he.y, -he.z);
-    faces[3].corners[3] = glm::vec3( he.x, -he.y,  he.z);
+    faces[3].normal     = math::vec3(0, -1, 0);
+    faces[3].corners[0] = math::vec3(-he.x, -he.y,  he.z);
+    faces[3].corners[1] = math::vec3(-he.x, -he.y, -he.z);
+    faces[3].corners[2] = math::vec3( he.x, -he.y, -he.z);
+    faces[3].corners[3] = math::vec3( he.x, -he.y,  he.z);
 
     // +Z face (normal = +Z, z = +he.z)
-    faces[4].normal     = glm::vec3(0, 0,  1);
-    faces[4].corners[0] = glm::vec3( he.x,  he.y, he.z);
-    faces[4].corners[1] = glm::vec3( he.x, -he.y, he.z);
-    faces[4].corners[2] = glm::vec3(-he.x, -he.y, he.z);
-    faces[4].corners[3] = glm::vec3(-he.x,  he.y, he.z);
+    faces[4].normal     = math::vec3(0, 0,  1);
+    faces[4].corners[0] = math::vec3( he.x,  he.y, he.z);
+    faces[4].corners[1] = math::vec3( he.x, -he.y, he.z);
+    faces[4].corners[2] = math::vec3(-he.x, -he.y, he.z);
+    faces[4].corners[3] = math::vec3(-he.x,  he.y, he.z);
 
     // -Z face (normal = -Z, z = -he.z)
-    faces[5].normal     = glm::vec3(0, 0, -1);
-    faces[5].corners[0] = glm::vec3(-he.x,  he.y, -he.z);
-    faces[5].corners[1] = glm::vec3(-he.x, -he.y, -he.z);
-    faces[5].corners[2] = glm::vec3( he.x, -he.y, -he.z);
-    faces[5].corners[3] = glm::vec3( he.x,  he.y, -he.z);
+    faces[5].normal     = math::vec3(0, 0, -1);
+    faces[5].corners[0] = math::vec3(-he.x,  he.y, -he.z);
+    faces[5].corners[1] = math::vec3(-he.x, -he.y, -he.z);
+    faces[5].corners[2] = math::vec3( he.x, -he.y, -he.z);
+    faces[5].corners[3] = math::vec3( he.x,  he.y, -he.z);
 
     for (int f = 0; f < 6; f++)
     {
         uint vertexOffset = (uint)s_vertices.size();
 
-        glm::vec3 rotatedNormal = orient * faces[f].normal;
+        math::vec3 rotatedNormal = orient * faces[f].normal;
 
         for (int c = 0; c < 4; c++)
         {
-            glm::vec3 rotatedCorner = orient * faces[f].corners[c];
+            math::vec3 rotatedCorner = orient * faces[f].corners[c];
             Vertex v;
             v.x  = center.x + rotatedCorner.x;
             v.y  = center.y + rotatedCorner.y;
