@@ -159,8 +159,19 @@ static math::vec3 pathTrace(bvh::Ray ray,
 
         if (!hit.hit)
         {
-            // Environment: sample IBL or use ambient colour
-            math::vec3 env = ibl.data ? ibl.sample(ray.dir) : ambient;
+            math::vec3 env;
+            if (ibl.data)
+            {
+                env = ibl.sample(ray.dir);
+            }
+            else
+            {
+                // Simple sky gradient: white horizon → blue zenith
+                float t = ray.dir.y * 0.5f + 0.5f;   // 0 at bottom, 1 at top
+                math::vec3 horizon(1.0f, 1.0f, 1.0f);
+                math::vec3 zenith (0.5f, 0.7f, 1.0f);
+                env = horizon * (1.f - t) + zenith * t;
+            }
             radiance += throughput * env;
             break;
         }
