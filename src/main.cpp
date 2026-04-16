@@ -40,7 +40,7 @@ struct Camera
 // Build camera from position, quaternion orientation, and focal length.
 // focal: distance to image plane; image plane height = 1.0 unit.
 // tanHalfFovY = 0.5 / focal.
-static Camera makeCamera(math::vec3 pos, math::quat orient, float focal)
+static Camera makeCameraQuat(math::vec3 pos, math::quat orient, float focal)
 {
     Camera cam;
     cam.pos         = pos;
@@ -48,6 +48,20 @@ static Camera makeCamera(math::vec3 pos, math::quat orient, float focal)
     cam.right       = math::normalize(orient * math::vec3( 1.f,  0.f,  0.f));
     cam.up          = math::normalize(orient * math::vec3( 0.f,  1.f,  0.f));
     cam.tanHalfFovY = 0.5f / focal;
+    return cam;
+}
+
+// Build camera from position, look-at target, and vertical FOV in degrees.
+static Camera makeCameraLookAt(math::vec3 pos, math::vec3 target, float fovDeg)
+{
+    Camera cam;
+    cam.pos         = pos;
+    cam.fwd         = math::normalize(target - pos);
+    math::vec3 worldUp = fabsf(cam.fwd.y) < 0.99f ? math::vec3(0.f, 1.f, 0.f)
+                                                   : math::vec3(1.f, 0.f, 0.f);
+    cam.right       = math::normalize(math::cross(cam.fwd, worldUp));
+    cam.up          = math::cross(cam.right, cam.fwd);
+    cam.tanHalfFovY = tanf(fovDeg * math::pi / 180.f * 0.5f);
     return cam;
 }
 
@@ -184,18 +198,23 @@ static math::vec3 pathTrace(bvh::Ray ray,
 
 struct SceneConfig
 {
-    int        width    = 800;
-    int        height   = 600;
-    math::vec3 camPos   = math::vec3(0.f, 1.f, -5.f);
-    math::quat camOrient;                              // identity
-    float      focal    = 1.f;
-    math::vec3 ambient  = math::vec3(0.1f, 0.1f, 0.1f);
+    int         width   = 800;
+    int         height  = 600;
+    Camera      camera;          // fully built camera
+    bool        hasCamera = false;
+    math::vec3  ambient = math::vec3(0.1f, 0.1f, 0.1f);
     std::string iblPath;
 };
 
 static SceneConfig parseSceneConfig(const std::string& path)
 {
     SceneConfig cfg;
+
+    // default camera: look-at style, pos=(0,1,-5) looking at origin
+    cfg.camera    = makeCameraLookAt(math::vec3(0.f, 1.f, -5.f),
+                                     math::vec3(0.f, 0.f,  0.f), 60.f);
+    cfg.hasCamera = false;
+
     std::ifstream f(path);
     if (!f.is_open()) { return cfg; }
 
@@ -212,17 +231,36 @@ static SceneConfig parseSceneConfig(const std::string& path)
         }
         else if (token == "camera")
         {
-            // camera <px> <py> <pz> <focal> q <qx> <qy> <qz> <qw>
-            float px, py, pz, focal;
-            std::string orientType;
-            float qx = 0.f, qy = 0.f, qz = 0.f, qw = 1.f;
-            if (iss >> px >> py >> pz >> focal >> orientType)
+            float px, py, pz;
+            if (!(iss >> px >> py >> pz)) { continue; }
+
+            // Peek at the next token to decide format
+            std::string next;
+            if (!(iss >> next)) { continue; }
+
+            if (next == "lookat")
             {
-                cfg.camPos  = math::vec3(px, py, pz);
-                cfg.focal   = focal;
-                if (orientType == "q") { iss >> qx >> qy >> qz >> qw; }
-                cfg.camOrient = math::normalize(math::quat(qw, qx, qy, qz));
+                // camera <px> <py> <pz> lookat <tx> <ty> <tz> <fov_degrees>
+                float tx, ty, tz, fov = 60.f;
+                if (iss >> tx >> ty >> tz) { iss >> fov; }
+                cfg.camera = makeCameraLookAt(math::vec3(px, py, pz),
+                                              math::vec3(tx, ty, tz), fov);
             }
+            else
+            {
+                // camera <px> <py> <pz> <focal> q <qx> <qy> <qz> <qw>
+                float focal = std::stof(next);
+                float qx = 0.f, qy = 0.f, qz = 0.f, qw = 1.f;
+                std::string orientType;
+                if ((iss >> orientType) && orientType == "q")
+                {
+                    iss >> qx >> qy >> qz >> qw;
+                }
+                cfg.camera = makeCameraQuat(math::vec3(px, py, pz),
+                                            math::normalize(math::quat(qw, qx, qy, qz)),
+                                            focal);
+            }
+            cfg.hasCamera = true;
         }
         else if (token == "ambient")
         {
@@ -281,7 +319,7 @@ int main(int argc, char** argv)
     const int W = cfg.width;
     const int H = cfg.height;
 
-    Camera cam = makeCamera(cfg.camPos, cfg.camOrient, cfg.focal);
+    Camera cam = cfg.camera;
 
     fprintf(stdout, "Rendering %dx%d @ %d spp...\n", W, H, spp);
 

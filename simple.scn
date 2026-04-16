@@ -1,0 +1,8 @@
+screen 800 600
+camera 0 3 -8 lookat 0 1 0 50
+ambient 0.05 0.05 0.05
+
+sphere 0 1 0 1
+box -2 1 2 1 1 1 q 0 0 0 1
+box  2 1 2 1 1 1 q 0 0 0 1
+box  0 -0.05 0 5 0.05 5 q 0 0 0 1
