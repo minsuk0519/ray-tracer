@@ -12,10 +12,8 @@ OPTIMIZE  = -g -O2
 
 CXXFLAGS = $(OPTIMIZE) -std=c++2b \
            -I. -Isrc -Isrc/bvh \
-           -I$(LIBDIR)/glm \
            -I$(LIBDIR)/stb \
            -I$(ASSIMPDIR)/include \
-           -DGLM_ENABLE_EXPERIMENTAL \
            -Wnarrowing
 
 # Use locally built assimp if libs/assimp/lib exists, otherwise fall back
