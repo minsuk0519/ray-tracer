@@ -13,13 +13,13 @@ OPTIMIZE  = -g -O2
 CXXFLAGS = $(OPTIMIZE) -std=c++2b \
            -I. -Isrc -Isrc/bvh \
            -I$(LIBDIR)/stb \
-           -I$(ASSIMPDIR)/include \
            -Wnarrowing
 
-# Use locally built assimp if libs/assimp/lib exists, otherwise fall back
-# to system-installed assimp (Linux: apt/pacman; Windows MSYS2: pacman -S mingw-w64-x86_64-assimp)
+# Use locally built assimp (headers + lib) if libs/assimp/lib exists,
+# otherwise fall back to system-installed assimp.
 ifneq (,$(wildcard $(ASSIMPDIR)/lib))
-    LIBS = -L$(ASSIMPDIR)/lib -lassimp
+    CXXFLAGS += -I$(ASSIMPDIR)/include
+    LIBS      = -L$(ASSIMPDIR)/lib -lassimp
 else
     LIBS = -lassimp
 endif
