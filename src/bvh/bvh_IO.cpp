@@ -37,13 +37,12 @@ static bool loadMesh(const std::string& path, const math::mat4& transform)
 
     for (unsigned int mi = 0; mi < scene->mNumMeshes; mi++)
     {
-        aiMesh* aimesh = scene->mMeshes[mi];
         uint vertexOffset = (uint)s_vertices.size();
 
-        for (unsigned int vi = 0; vi < aimesh->mNumVertices; vi++)
+        for (unsigned int vi = 0; vi < scene->mMeshes[mi]->mNumVertices; vi++)
         {
-            aiVector3D p = aimesh->mVertices[vi];
-            aiVector3D n = aimesh->mNormals[vi];
+            aiVector3D p = scene->mMeshes[mi]->mVertices[vi];
+            aiVector3D n = scene->mMeshes[mi]->mNormals[vi];
 
             math::vec4 tp = transform       * math::vec4(p.x, p.y, p.z, 1.0f);
             math::vec4 tn = normalTransform * math::vec4(n.x, n.y, n.z, 0.0f);
@@ -54,14 +53,14 @@ static bool loadMesh(const std::string& path, const math::mat4& transform)
             s_vertices.push_back(v);
         }
 
-        for (unsigned int fi = 0; fi < aimesh->mNumFaces; fi++)
+        for (unsigned int fi = 0; fi < scene->mMeshes[mi]->mNumFaces; fi++)
         {
-            if (aimesh->mFaces[fi].mNumIndices == 3)
+            if (scene->mMeshes[mi]->mFaces[fi].mNumIndices == 3)
             {
                 Triangle tri;
-                tri.v[0] = vertexOffset + aimesh->mFaces[fi].mIndices[0];
-                tri.v[1] = vertexOffset + aimesh->mFaces[fi].mIndices[1];
-                tri.v[2] = vertexOffset + aimesh->mFaces[fi].mIndices[2];
+                tri.v[0] = vertexOffset + scene->mMeshes[mi]->mFaces[fi].mIndices[0];
+                tri.v[1] = vertexOffset + scene->mMeshes[mi]->mFaces[fi].mIndices[1];
+                tri.v[2] = vertexOffset + scene->mMeshes[mi]->mFaces[fi].mIndices[2];
                 s_triangles.push_back(tri);
             }
         }
@@ -86,7 +85,6 @@ bool initGeos()
     const uint vertCount = (uint)s_vertices.size();
     const uint triCount  = (uint)s_triangles.size();
 
-    // validate all triangle vertex indices are in bounds
     for (uint i = 0; i < triCount; i++)
     {
         for (uint k = 0; k < 3; k++)
@@ -100,8 +98,7 @@ bool initGeos()
         }
     }
 
-    // normalize vertex normals — the inverse-transpose normal transform in loadMesh
-    // does not preserve length, so we re-normalize here
+    // inverse-transpose in loadMesh does not preserve length, so re-normalize here
     for (uint i = 0; i < vertCount; i++)
     {
         float len = std::hypot(s_vertices[i].nx, s_vertices[i].ny, s_vertices[i].nz);
@@ -113,7 +110,8 @@ bool initGeos()
         }
         else
         {
-            s_vertices[i].nx = 0.f;  // degenerate normal — fallback to up
+            // degenerate normal — fallback to +Y
+            s_vertices[i].nx = 0.f;
             s_vertices[i].ny = 1.f;
             s_vertices[i].nz = 0.f;
         }
@@ -151,7 +149,6 @@ bool readScene()
 
         if (token == "sphere")
         {
-            // syntax: sphere <cx> <cy> <cz> <radius> [<rings> <sectors>]
             float cx, cy, cz, radius;
             if (!(iss >> cx >> cy >> cz >> radius))
             {
@@ -175,7 +172,6 @@ bool readScene()
 
         if (token == "box")
         {
-            // syntax: box <cx> <cy> <cz> <hx> <hy> <hz> q <qx> <qy> <qz> <qw>
             float cx, cy, cz, hx, hy, hz;
             std::string orientType;
             float qx, qy, qz, qw;
@@ -201,7 +197,6 @@ bool readScene()
             continue;
         }
 
-        // syntax: mesh <filename> <tx> <ty> <tz> <scale> q <qx> <qy> <qz> <qw>
         std::string meshPath;
         float tx, ty, tz, scale;
         std::string orientType;
@@ -240,7 +235,6 @@ bool readScene()
 
 bool writeBakedData()
 {
-    // derive output path: replace extension with .bvh
     std::string outPath = s_scenePath;
     auto dot = outPath.rfind('.');
     if (dot != std::string::npos)
@@ -260,13 +254,11 @@ bool writeBakedData()
     const uint triCount  = (uint)s_triangles.size();
     const uint vertCount = (uint)s_vertices.size();
 
-    // header: version, counts
     out.write(reinterpret_cast<const char*>(&BVH_FILE_VERSION), sizeof(uint));
     out.write(reinterpret_cast<const char*>(&nodeCount),        sizeof(uint));
     out.write(reinterpret_cast<const char*>(&triCount),         sizeof(uint));
     out.write(reinterpret_cast<const char*>(&vertCount),        sizeof(uint));
 
-    // payload
     out.write(reinterpret_cast<const char*>(s_nodes.data()),     nodeCount * sizeof(BVHNode));
     out.write(reinterpret_cast<const char*>(s_triangles.data()), triCount  * sizeof(Triangle));
     out.write(reinterpret_cast<const char*>(s_vertices.data()),  vertCount * sizeof(Vertex));

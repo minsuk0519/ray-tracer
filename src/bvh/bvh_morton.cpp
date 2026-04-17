@@ -42,24 +42,22 @@ static bool computeMortonCodes()
     const uint triCount = (uint)s_triangles.size();
 
     s_mortonData.resize(triCount);
-    s_sortedTris.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));  // extra capacity for spatial splits
-    s_triIndex.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));    // mirrors s_sortedTris; s_triIndex[k] → s_sortedTris[k]
+    // extra capacity reserved for spatial splits (duplicates appended later)
+    s_sortedTris.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));
+    s_triIndex.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));
 
-    // pass 1: compute scene AABB
     s_sceneAABB = AABB();
     for (uint i = 0; i < triCount; i++)
     {
-        const Triangle& tri = s_triangles[i];
-        const Vertex&   v0  = s_vertices[tri.v[0]];
-        const Vertex&   v1  = s_vertices[tri.v[1]];
-        const Vertex&   v2  = s_vertices[tri.v[2]];
+        uint vi0 = s_triangles[i].v[0];
+        uint vi1 = s_triangles[i].v[1];
+        uint vi2 = s_triangles[i].v[2];
 
-        s_sceneAABB.extend(math::vec3(v0.x, v0.y, v0.z));
-        s_sceneAABB.extend(math::vec3(v1.x, v1.y, v1.z));
-        s_sceneAABB.extend(math::vec3(v2.x, v2.y, v2.z));
+        s_sceneAABB.extend(math::vec3(s_vertices[vi0].x, s_vertices[vi0].y, s_vertices[vi0].z));
+        s_sceneAABB.extend(math::vec3(s_vertices[vi1].x, s_vertices[vi1].y, s_vertices[vi1].z));
+        s_sceneAABB.extend(math::vec3(s_vertices[vi2].x, s_vertices[vi2].y, s_vertices[vi2].z));
     }
 
-    // pass 2: compute centroids, quantize directly, pack Morton codes
     math::vec3 sceneMin  = s_sceneAABB.min;
     math::vec3 sceneSize = s_sceneAABB.max - s_sceneAABB.min;
     if (sceneSize.x == 0.f)
@@ -75,7 +73,7 @@ static bool computeMortonCodes()
         sceneSize.z = 1.f;
     }
 
-    // quantize directly to 21-bit integers without intermediate [0,1] normalization
+    // quantize directly to 21-bit integers without an intermediate [0,1] normalization step
     auto quantize = [](float c, float min, float size) -> uint {
         uint q = (uint)((c - min) * (float)MORTON_UNIT_MAX / size);
         return q > MORTON_UNIT_MAX ? MORTON_UNIT_MAX : q;
@@ -83,14 +81,13 @@ static bool computeMortonCodes()
 
     for (uint i = 0; i < triCount; i++)
     {
-        const Triangle& tri = s_triangles[i];
-        const Vertex&   v0  = s_vertices[tri.v[0]];
-        const Vertex&   v1  = s_vertices[tri.v[1]];
-        const Vertex&   v2  = s_vertices[tri.v[2]];
+        uint vi0 = s_triangles[i].v[0];
+        uint vi1 = s_triangles[i].v[1];
+        uint vi2 = s_triangles[i].v[2];
 
-        float cx = (v0.x + v1.x + v2.x) / 3.0f;
-        float cy = (v0.y + v1.y + v2.y) / 3.0f;
-        float cz = (v0.z + v1.z + v2.z) / 3.0f;
+        float cx = (s_vertices[vi0].x + s_vertices[vi1].x + s_vertices[vi2].x) / 3.0f;
+        float cy = (s_vertices[vi0].y + s_vertices[vi1].y + s_vertices[vi2].y) / 3.0f;
+        float cz = (s_vertices[vi0].z + s_vertices[vi1].z + s_vertices[vi2].z) / 3.0f;
 
         uint qx = quantize(cx, sceneMin.x, sceneSize.x);
         uint qy = quantize(cy, sceneMin.y, sceneSize.y);
@@ -135,14 +132,12 @@ bool sortTrisByMorton()
 
         memset(count, 0, sizeof(count));
 
-        // count
         for (uint i = 0; i < triCount; i++)
         {
             uint bucket = (s_mortonData[s_sortedTris[i]].mortonCode >> shift) & RADIX_MASK;
             count[bucket]++;
         }
 
-        // prefix sum
         uint total = 0;
         for (int b = 0; b < RADIX_SIZE; b++)
         {
@@ -151,7 +146,6 @@ bool sortTrisByMorton()
             total    += c;
         }
 
-        // scatter
         for (uint i = 0; i < triCount; i++)
         {
             uint bucket    = (s_mortonData[s_sortedTris[i]].mortonCode >> shift) & RADIX_MASK;

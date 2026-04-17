@@ -6,6 +6,8 @@
 #include "bvh_morton.hpp"
 #include "bvh_bfs.hpp"
 
+#include "../math/math.hpp"
+
 #include <deque>
 #include <vector>
 #include <string>
@@ -27,10 +29,33 @@ std::vector<uint>          s_sortedTris;
 std::vector<uint>          s_triIndex;
 uint                       s_triIndexSize   = 0;
 uint                       s_sortedTrisSize = 0;
+std::vector<math::vec3>    s_centroids;
 uint                       s_totalNodeCount = 0;
 AABB                       s_sceneAABB;
 
 // ── Module-internal pipeline steps ────────────────────────────────────────────
+
+// Build centroid cache after sortTrisByMorton has finalized s_sortedTris.
+// s_centroids[sortedIndex] = centroid of s_sortedTris[sortedIndex].
+// Pre-reserves to s_sortedTris.size() so spatial splits can append without realloc.
+// s_centroids[triangleIndex] = centroid of s_triangles[triangleIndex].
+// Indexed identically to s_triangles, so spatial-split duplicates (which reference
+// the same triangleIndex) automatically share the same centroid — no update needed.
+static bool buildCentroidCache()
+{
+    uint triCount = (uint)s_triangles.size();
+    s_centroids.resize(triCount);
+    for (uint i = 0; i < triCount; i++)
+    {
+        const Triangle& tri = s_triangles[i];
+        s_centroids[i] = math::vec3(
+            (s_vertices[tri.v[0]].x + s_vertices[tri.v[1]].x + s_vertices[tri.v[2]].x) / 3.f,
+            (s_vertices[tri.v[0]].y + s_vertices[tri.v[1]].y + s_vertices[tri.v[2]].y) / 3.f,
+            (s_vertices[tri.v[0]].z + s_vertices[tri.v[1]].z + s_vertices[tri.v[2]].z) / 3.f
+        );
+    }
+    return true;
+}
 
 static bool preBake()
 {
@@ -141,6 +166,8 @@ static bool finishBake()
     s_sortedTris.shrink_to_fit();
     s_triIndex.clear();
     s_triIndex.shrink_to_fit();
+    s_centroids.clear();
+    s_centroids.shrink_to_fit();
     s_triIndexSize   = 0;
     s_sortedTrisSize = 0;
     s_totalNodeCount = 0;
@@ -154,9 +181,10 @@ bool bakeBVH(const std::string& scenePath)
 {
     s_scenePath = scenePath;
 
-    if (!preBake())           return false;
-    if (!sortTrisByMorton())  return false;
-    if (!initRoot())          return false;
+    if (!preBake())              return false;
+    if (!sortTrisByMorton())     return false;
+    if (!buildCentroidCache())   return false;
+    if (!initRoot())             return false;
     if (!bfsLoop())           return false;
     if (!reorderNodes())      return false;
     if (!reorderTriangles())  return false;

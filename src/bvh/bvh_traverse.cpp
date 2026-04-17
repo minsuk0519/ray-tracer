@@ -97,7 +97,7 @@ static Hit traverse(const Ray& ray)
 
     uint stack[64];
     int  top = 0;
-    stack[top++] = 0;  // push root
+    stack[top++] = 0;
 
     while (top > 0)
     {

@@ -24,6 +24,7 @@ namespace bvh
     extern std::vector<uint>          s_triIndex;       // reserved for spatial split indirection; mirrors s_sortedTris
     extern uint                       s_triIndexSize;   // number of used entries in s_triIndex (first triCount slots initialized; grows with spatial splits)
     extern uint                       s_sortedTrisSize; // number of used entries in s_sortedTris (initially triCount; grows as spatial splits append duplicates)
+    extern std::vector<math::vec3>    s_centroids;      // s_centroids[triangleIndex] = centroid of s_triangles[triangleIndex]; parallel to s_triangles
     extern uint                       s_totalNodeCount;
     extern AABB                       s_sceneAABB;
 }

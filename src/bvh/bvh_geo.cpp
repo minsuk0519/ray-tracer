@@ -11,14 +11,9 @@ namespace bvh
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
-// Returns the absolute vertex index in s_vertices for a middle-ring vertex.
-// vertexOffset : index of vertex 0 (north pole) for this sphere call
-// r            : ring index in [1, rings-1]
-// s            : sector index in [0, sectors-1]
+// Layout: [north pole][ring 1 sectors...][ring 2 sectors...]...[south pole]. r in [1, rings-1].
 static uint ringVert(uint vertexOffset, int r, int s, int sectors)
 {
-    // vertex 0       = north pole
-    // vertices 1 ..  = middle rings, row-major: ring r, sector s -> offset 1 + (r-1)*sectors + s
     return vertexOffset + 1u + (uint)((r - 1) * sectors + s);
 }
 
@@ -29,7 +24,6 @@ void addSphere(math::vec3 center, float radius, int rings, int sectors)
     const uint vertexOffset = (uint)s_vertices.size();
     const float pi  = math::pi;
 
-    // North pole — vertex 0
     {
         Vertex v;
         v.x  = center.x;
@@ -41,7 +35,6 @@ void addSphere(math::vec3 center, float radius, int rings, int sectors)
         s_vertices.push_back(v);
     }
 
-    // Middle rings: r in [1, rings-1], s in [0, sectors-1]
     for (int r = 1; r < rings; r++)
     {
         float theta = pi * (float)r / (float)rings;
@@ -62,7 +55,6 @@ void addSphere(math::vec3 center, float radius, int rings, int sectors)
         }
     }
 
-    // South pole — last vertex
     const uint southPole = (uint)s_vertices.size();
     {
         Vertex v;
@@ -77,7 +69,6 @@ void addSphere(math::vec3 center, float radius, int rings, int sectors)
 
     const uint northPole = vertexOffset;
 
-    // Top cap: north_pole -> ring1[s+1] -> ring1[s]
     for (int s = 0; s < sectors; s++)
     {
         int sNext = (s + 1) % sectors;
@@ -88,7 +79,6 @@ void addSphere(math::vec3 center, float radius, int rings, int sectors)
         s_triangles.push_back(tri);
     }
 
-    // Middle quads: rings-2 rows, each ring r -> r+1
     for (int r = 1; r < rings - 1; r++)
     {
         for (int s = 0; s < sectors; s++)
@@ -109,9 +99,7 @@ void addSphere(math::vec3 center, float radius, int rings, int sectors)
         }
     }
 
-    // Bottom cap: south_pole -> ring[rings-1][s+1] -> ring[rings-1][s]
-    // Winding is reversed relative to the top cap so back-face culling (reject a>=0)
-    // correctly accepts external hits from below the sphere.
+    // winding reversed vs. top cap so back-face culling (reject a>=0) accepts external hits from below
     for (int s = 0; s < sectors; s++)
     {
         int sNext = (s + 1) % sectors;
@@ -125,11 +113,7 @@ void addSphere(math::vec3 center, float radius, int rings, int sectors)
 
 void addBox(math::vec3 center, math::vec3 he, math::quat orient)
 {
-    // 6 faces: +X, -X, +Y, -Y, +Z, -Z
-    // Each face has 4 unique vertices and 2 triangles.
-    // local_corners[face][corner] defined with CCW winding from outside.
-
-    // Face definitions: normal direction and 4 corner offsets (in local unrotated frame)
+    // corners are CCW-wound seen from outside so (0,1,2)+(0,2,3) triangles face outward
     struct FaceDef
     {
         math::vec3 normal;
@@ -138,42 +122,36 @@ void addBox(math::vec3 center, math::vec3 he, math::quat orient)
 
     FaceDef faces[6];
 
-    // +X face (normal = +X, x = +he.x)
     faces[0].normal     = math::vec3( 1, 0, 0);
     faces[0].corners[0] = math::vec3( he.x,  he.y, -he.z);
     faces[0].corners[1] = math::vec3( he.x, -he.y, -he.z);
     faces[0].corners[2] = math::vec3( he.x, -he.y,  he.z);
     faces[0].corners[3] = math::vec3( he.x,  he.y,  he.z);
 
-    // -X face (normal = -X, x = -he.x)
     faces[1].normal     = math::vec3(-1, 0, 0);
     faces[1].corners[0] = math::vec3(-he.x,  he.y,  he.z);
     faces[1].corners[1] = math::vec3(-he.x, -he.y,  he.z);
     faces[1].corners[2] = math::vec3(-he.x, -he.y, -he.z);
     faces[1].corners[3] = math::vec3(-he.x,  he.y, -he.z);
 
-    // +Y face (normal = +Y, y = +he.y)
     faces[2].normal     = math::vec3(0,  1, 0);
     faces[2].corners[0] = math::vec3(-he.x, he.y, -he.z);
     faces[2].corners[1] = math::vec3(-he.x, he.y,  he.z);
     faces[2].corners[2] = math::vec3( he.x, he.y,  he.z);
     faces[2].corners[3] = math::vec3( he.x, he.y, -he.z);
 
-    // -Y face (normal = -Y, y = -he.y)
     faces[3].normal     = math::vec3(0, -1, 0);
     faces[3].corners[0] = math::vec3(-he.x, -he.y,  he.z);
     faces[3].corners[1] = math::vec3(-he.x, -he.y, -he.z);
     faces[3].corners[2] = math::vec3( he.x, -he.y, -he.z);
     faces[3].corners[3] = math::vec3( he.x, -he.y,  he.z);
 
-    // +Z face (normal = +Z, z = +he.z)
     faces[4].normal     = math::vec3(0, 0,  1);
     faces[4].corners[0] = math::vec3( he.x,  he.y, he.z);
     faces[4].corners[1] = math::vec3( he.x, -he.y, he.z);
     faces[4].corners[2] = math::vec3(-he.x, -he.y, he.z);
     faces[4].corners[3] = math::vec3(-he.x,  he.y, he.z);
 
-    // -Z face (normal = -Z, z = -he.z)
     faces[5].normal     = math::vec3(0, 0, -1);
     faces[5].corners[0] = math::vec3(-he.x,  he.y, -he.z);
     faces[5].corners[1] = math::vec3(-he.x, -he.y, -he.z);
@@ -199,7 +177,6 @@ void addBox(math::vec3 center, math::vec3 he, math::quat orient)
             s_vertices.push_back(v);
         }
 
-        // Triangle pair: (0,1,2) and (0,2,3)
         Triangle t0;
         t0.v[0] = vertexOffset + 0;
         t0.v[1] = vertexOffset + 1;

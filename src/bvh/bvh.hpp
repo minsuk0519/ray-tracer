@@ -28,7 +28,17 @@ struct BVHNode
     };
 };
 
-struct Vertex { float x, y, z, nx, ny, nz; };
+struct Vertex
+{
+    float x, y, z, nx, ny, nz;
+
+    float operator[](int axis) const
+    {
+        if (axis == 0) { return x; }
+        if (axis == 1) { return y; }
+        return z;
+    }
+};
 
 // ── Baking entry point (#ifdef BAKING) ────────────────────────────────────────
 

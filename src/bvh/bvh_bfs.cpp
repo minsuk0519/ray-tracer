@@ -55,8 +55,7 @@ bool initRoot()
         return false;
     }
 
-    // worst case: spatial splits produce triCount * SPATIAL_TRICOUNT_MULTIPLIER leaves,
-    // a full binary tree over N leaves has 2N - 1 nodes total
+    // worst case sizing: N leaves after spatial splits => 2N-1 total nodes in a full binary tree
     s_nodes.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER) * 2 - 1);
     s_totalNodeCount = 1;
 
@@ -77,7 +76,6 @@ bool bfsLoop()
         NodeBakingJob job = s_queue.front();
         s_queue.pop_front();
 
-        // make leaf if small enough
         if (s_nodes[job.nodeIndex].triSize <= (uint)BVH_MAX_LEAF_SIZE)
         {
             s_nodes[job.nodeIndex].isLeaf = true;
@@ -86,7 +84,7 @@ bool bfsLoop()
 
         if (job.isSAH)
         {
-            // delegate to SAH module — trySAHSplit marks the node as leaf on failure
+            // trySAHSplit marks the node as leaf on failure, so no fallthrough needed
             trySAHSplit(job.nodeIndex);
             continue;
         }
@@ -103,7 +101,7 @@ bool bfsLoop()
 
         if (xorCodes == 0)
         {
-            // all codes identical — no Morton split possible
+            // all codes identical — no Morton split possible, fall back to SAH
             trySAHSplit(job.nodeIndex);
             continue;
         }
@@ -111,7 +109,6 @@ bool bfsLoop()
         uint64_t splitMask  = std::bit_floor(xorCodes);
         uint     splitIndex = findMortonSplitIndex(begin, triCount, splitMask);
 
-        // allocate two child nodes
         uint leftIndex  = s_totalNodeCount++;
         uint rightIndex = s_totalNodeCount++;
 

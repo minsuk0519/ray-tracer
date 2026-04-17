@@ -63,8 +63,6 @@ AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
 {
     if (leftSide)
     {
-        // Keep everything at axis <= splitPos.
-        // If box is entirely on the wrong side, return invalid.
         if (box.min[axis] >= splitPos)
         {
             return AABB();
@@ -75,8 +73,6 @@ AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
     }
     else
     {
-        // Keep everything at axis >= splitPos.
-        // If box is entirely on the wrong side, return invalid.
         if (box.max[axis] <= splitPos)
         {
             return AABB();
@@ -89,9 +85,7 @@ AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
 
 AABB clipTriangleToAABB(vec3 v0, vec3 v1, vec3 v2, const AABB& clipRegion)
 {
-    // Sutherland-Hodgman clip of a triangle polygon against all 6 AABB planes.
-    // Maximum vertices after clipping a triangle against 6 planes: 9 (each plane
-    // adds at most 1 vertex). Use a fixed-size buffer with capacity 12.
+    // Sutherland-Hodgman against 6 AABB planes: a triangle has max 9 vertices after clipping; capacity 12 is safe.
     const int kMaxVerts = 12;
     vec3 poly[kMaxVerts];
     vec3 tmp[kMaxVerts];
@@ -103,11 +97,8 @@ AABB clipTriangleToAABB(vec3 v0, vec3 v1, vec3 v2, const AABB& clipRegion)
     poly[2] = v2;
     polySize = 3;
 
-    // Clip against 6 planes: -x, +x, -y, +y, -z, +z.
-    // For each axis, clip against the min plane then the max plane.
     for (int axis = 0; axis < 3; ++axis)
     {
-        // --- min plane: inside if point[axis] >= clipRegion.min[axis] ---
         {
             tmpSize = 0;
             float planePos = clipRegion.min[axis];
@@ -124,7 +115,6 @@ AABB clipTriangleToAABB(vec3 v0, vec3 v1, vec3 v2, const AABB& clipRegion)
 
                 if (curInside != nextInside)
                 {
-                    // Compute intersection with the plane.
                     float t = (planePos - poly[i][axis]) / (poly[next][axis] - poly[i][axis]);
                     tmp[tmpSize++] = poly[i] + t * (poly[next] - poly[i]);
                 }
@@ -140,7 +130,6 @@ AABB clipTriangleToAABB(vec3 v0, vec3 v1, vec3 v2, const AABB& clipRegion)
             }
         }
 
-        // --- max plane: inside if point[axis] <= clipRegion.max[axis] ---
         {
             tmpSize = 0;
             float planePos = clipRegion.max[axis];
@@ -173,7 +162,6 @@ AABB clipTriangleToAABB(vec3 v0, vec3 v1, vec3 v2, const AABB& clipRegion)
         }
     }
 
-    // Compute AABB of the clipped polygon.
     AABB result;
     for (int i = 0; i < polySize; ++i)
     {

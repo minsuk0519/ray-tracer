@@ -14,11 +14,13 @@
 namespace bvh
 {
 
-static inline float vertexCoord(const Vertex& v, int axis)
+// Returns world-space positions of a triangle's three vertices.
+static void triVerts(uint triangleIndex, math::vec3& v0, math::vec3& v1, math::vec3& v2)
 {
-    if (axis == 0) { return v.x; }
-    if (axis == 1) { return v.y; }
-    return v.z;
+    const Triangle& tri = s_triangles[triangleIndex];
+    v0 = math::vec3(s_vertices[tri.v[0]][0], s_vertices[tri.v[0]][1], s_vertices[tri.v[0]][2]);
+    v1 = math::vec3(s_vertices[tri.v[1]][0], s_vertices[tri.v[1]][1], s_vertices[tri.v[1]][2]);
+    v2 = math::vec3(s_vertices[tri.v[2]][0], s_vertices[tri.v[2]][1], s_vertices[tri.v[2]][2]);
 }
 
 bool trySAHSplit(uint nodeIndex)
@@ -50,25 +52,23 @@ bool trySAHSplit(uint nodeIndex)
     AABB  lAABB[BVH_SAH_BINS_MAX];
     uint  lCount[BVH_SAH_BINS_MAX];
 
+    // ── Phase 1: Object split — bin by triangle centroid ──────────────────────
+    // Centroid bounds give the range for bin mapping. We need centroid bounds
+    // (not full AABB bounds) because the bin formula maps centroid position to a
+    // bin index: bin = (centroid - cmin) / (cmax - cmin) * numBins.
+    // Using full AABB bounds would over-widen the range and waste bin resolution.
+
     for (int axis = 0; axis < 3; axis++)
     {
-        // centroid bounds along this axis
         float cmin =  std::numeric_limits<float>::max();
         float cmax = -std::numeric_limits<float>::max();
         for (uint i = begin; i < end; i++)
         {
-            uint sortedIndex   = s_triIndex[i];
-            uint triangleIndex = s_sortedTris[sortedIndex];
-            float c = 0.f;
-            for (int j = 0; j < 3; j++)
-            {
-                c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], axis);
-            }
-            c /= 3.0f;
+            float c = s_centroids[s_sortedTris[s_triIndex[i]]][axis];
             cmin = std::min(cmin, c);
             cmax = std::max(cmax, c);
         }
-        if (cmax - cmin < 1e-6f)
+        if (cmax - cmin < BVH_CENTROID_EPS)
         {
             continue;
         }
@@ -84,19 +84,14 @@ bool trySAHSplit(uint nodeIndex)
         {
             uint sortedIndex   = s_triIndex[i];
             uint triangleIndex = s_sortedTris[sortedIndex];
-            float c = 0.f;
-            for (int j = 0; j < 3; j++)
-            {
-                c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], axis);
-            }
-            c /= 3.0f;
+            float c = s_centroids[triangleIndex][axis];
             int b = std::min((int)((c - cmin) * binScale), numBins - 1);
             bins[b].count++;
-            for (int j = 0; j < 3; j++)
-            {
-                uint vertexIndex = s_triangles[triangleIndex].v[j];
-                bins[b].aabb.extend(math::vec3(s_vertices[vertexIndex].x, s_vertices[vertexIndex].y, s_vertices[vertexIndex].z));
-            }
+            math::vec3 v0, v1, v2;
+            triVerts(triangleIndex, v0, v1, v2);
+            bins[b].aabb.extend(v0);
+            bins[b].aabb.extend(v1);
+            bins[b].aabb.extend(v2);
         }
 
         // prefix (left) sweep
@@ -144,6 +139,10 @@ bool trySAHSplit(uint nodeIndex)
 
     // ── Phase 2: Spatial binning ───────────────────────────────────────────────
     // Bins are spaced over the node's full spatial AABB extent (not centroid bounds).
+    // Triangles are clipped per-bin via Sutherland-Hodgman, giving tighter child AABBs
+    // at the cost of potential triangle duplication (straddlers appear in both children).
+    // TODO: add SBVH lambda overlap threshold to restrict spatial splits to nodes where
+    // the overlap between child AABBs is large enough to justify the duplication cost.
 
     struct SpatialBin
     {
@@ -165,7 +164,7 @@ bool trySAHSplit(uint nodeIndex)
         float nodeMin = s_nodes[nodeIndex].aabb.min[axis];
         float nodeMax = s_nodes[nodeIndex].aabb.max[axis];
 
-        if (nodeMax - nodeMin < 1e-6f)
+        if (nodeMax - nodeMin < BVH_CENTROID_EPS)
         {
             continue;
         }
@@ -181,16 +180,13 @@ bool trySAHSplit(uint nodeIndex)
         {
             uint sortedIndex   = s_triIndex[i];
             uint triangleIndex = s_sortedTris[sortedIndex];
+            math::vec3 v0, v1, v2;
+            triVerts(triangleIndex, v0, v1, v2);
 
-            // Build triangle AABB from vertices
             AABB triAABB;
-            math::vec3 verts[3];
-            for (int j = 0; j < 3; j++)
-            {
-                uint vi = s_triangles[triangleIndex].v[j];
-                verts[j] = math::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z);
-                triAABB.extend(verts[j]);
-            }
+            triAABB.extend(v0);
+            triAABB.extend(v1);
+            triAABB.extend(v2);
 
             int binMin = std::clamp((int)((triAABB.min[axis] - nodeMin) * spatialBinScale), 0, numBins - 1);
             int binMax = std::clamp((int)((triAABB.max[axis] - nodeMin) * spatialBinScale), 0, numBins - 1);
@@ -209,7 +205,7 @@ bool trySAHSplit(uint nodeIndex)
                 binRegion.min[axis] = binLeft;
                 binRegion.max[axis] = binRight;
 
-                AABB clipped = clipTriangleToAABB(verts[0], verts[1], verts[2], binRegion);
+                AABB clipped = clipTriangleToAABB(v0, v1, v2, binRegion);
                 if (clipped.valid())
                 {
                     spatialBins[b].aabb.extend(clipped);
@@ -268,24 +264,16 @@ bool trySAHSplit(uint nodeIndex)
     // ── Object split path ─────────────────────────────────────────────────────
     if (!isSpatialSplit)
     {
-        // partition s_triIndex[begin..end) around the winning split plane
         auto mid = std::partition(
             s_triIndex.begin() + begin,
             s_triIndex.begin() + end,
             [&](uint sortedIndex) {
-                uint triangleIndex = s_sortedTris[sortedIndex];
-                float c = 0.f;
-                for (int j = 0; j < 3; j++)
-                {
-                    c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], bestAxis);
-                }
-                c /= 3.0f;
+                float c = s_centroids[s_sortedTris[sortedIndex]][bestAxis];
                 return std::min((int)((c - bestCMin) * bestScale), numBins - 1) < bestBin;
             });
 
         uint splitPos = (uint)(mid - s_triIndex.begin());
 
-        // guard against a degenerate partition (all on one side)
         if (splitPos == begin || splitPos == end)
         {
             s_nodes[nodeIndex].isLeaf = true;
@@ -323,36 +311,29 @@ bool trySAHSplit(uint nodeIndex)
     // right-only:  triAABB.min[bestAxis] >= splitPlane
     // straddling:  everything else
 
-    // First pass: move left-only to the front
     auto leftEnd_it = std::partition(
         s_triIndex.begin() + begin,
         s_triIndex.begin() + end,
         [&](uint sortedIndex) {
             uint triangleIndex = s_sortedTris[sortedIndex];
+            math::vec3 v0, v1, v2;
+            triVerts(triangleIndex, v0, v1, v2);
             AABB triAABB;
-            for (int j = 0; j < 3; j++)
-            {
-                uint vi = s_triangles[triangleIndex].v[j];
-                triAABB.extend(math::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z));
-            }
+            triAABB.extend(v0); triAABB.extend(v1); triAABB.extend(v2);
             return triAABB.max[bestAxis] <= splitPlane;
         });
 
     uint leftEnd = (uint)(leftEnd_it - s_triIndex.begin());
 
-    // Second pass: among [leftEnd..end), move straddling before right-only
     auto straddleEnd_it = std::partition(
         s_triIndex.begin() + leftEnd,
         s_triIndex.begin() + end,
         [&](uint sortedIndex) {
             uint triangleIndex = s_sortedTris[sortedIndex];
+            math::vec3 v0, v1, v2;
+            triVerts(triangleIndex, v0, v1, v2);
             AABB triAABB;
-            for (int j = 0; j < 3; j++)
-            {
-                uint vi = s_triangles[triangleIndex].v[j];
-                triAABB.extend(math::vec3(s_vertices[vi].x, s_vertices[vi].y, s_vertices[vi].z));
-            }
-            // Straddling if not entirely right-only (i.e., min < splitPlane)
+            triAABB.extend(v0); triAABB.extend(v1); triAABB.extend(v2);
             return triAABB.min[bestAxis] < splitPlane;
         });
 
@@ -361,8 +342,6 @@ bool trySAHSplit(uint nodeIndex)
     uint straddleCount = straddleEnd - leftEnd;
     uint rightCount    = end - straddleEnd;
 
-    // Shared fallback: apply saved object split when the spatial split cannot proceed.
-    // Captures nodeIndex, begin, end, numBins by reference from enclosing scope.
     auto applyObjectSplitFallback = [&]() -> bool
     {
         bestAxis  = bestObjectAxis;
@@ -380,13 +359,7 @@ bool trySAHSplit(uint nodeIndex)
             s_triIndex.begin() + begin,
             s_triIndex.begin() + end,
             [&](uint sortedIndex) {
-                uint triangleIndex = s_sortedTris[sortedIndex];
-                float c = 0.f;
-                for (int j = 0; j < 3; j++)
-                {
-                    c += vertexCoord(s_vertices[s_triangles[triangleIndex].v[j]], bestAxis);
-                }
-                c /= 3.0f;
+                float c = s_centroids[s_sortedTris[sortedIndex]][bestAxis];
                 return std::min((int)((c - bestCMin) * bestScale), numBins - 1) < bestBin;
             });
 
@@ -419,45 +392,38 @@ bool trySAHSplit(uint nodeIndex)
         return true;
     };
 
-    // Degenerate: all entries ended up on one side — fall back to object split
     if ((leftCount + straddleCount == 0) || (straddleCount + rightCount == 0))
     {
         return applyObjectSplitFallback();
     }
 
-    // Capacity check: right child needs rightCount + straddleCount new s_triIndex slots,
-    // and straddleCount new s_sortedTris slots for the duplicated straddling triangles.
     if (s_triIndexSize + rightCount + straddleCount > (uint)s_triIndex.size() ||
         s_sortedTrisSize + straddleCount > (uint)s_sortedTris.size())
     {
-        // Fall back to object split (capacity exhausted)
         return applyObjectSplitFallback();
     }
 
-    // Build right child's contiguous range at [s_triIndexSize, s_triIndexSize + rightCount + straddleCount)
-    // Layout: [right-only entries | duplicated straddling entries]
     uint rightBegin = s_triIndexSize;
 
-    // Move right-only entries: copy s_triIndex reference (no duplication in s_sortedTris)
+    // Right-only: copy s_triIndex reference (no new s_sortedTris slot)
     for (uint k = 0; k < rightCount; k++)
     {
         s_triIndex[s_triIndexSize] = s_triIndex[straddleEnd + k];
         s_triIndexSize++;
     }
 
-    // Straddling entries: append NEW s_sortedTris entries (true triangle duplication),
-    // then point s_triIndex at the newly appended s_sortedTris slots.
+    // Straddling: duplicate into s_sortedTris (centroid lookup is by triangleIndex,
+    // so the same s_centroids entry is shared — no centroid duplication needed)
     for (uint k = 0; k < straddleCount; k++)
     {
-        s_sortedTris[s_sortedTrisSize] = s_sortedTris[s_triIndex[leftEnd + k]];
-        s_triIndex[s_triIndexSize]     = s_sortedTrisSize;
+        uint oldSortedIndex            = s_triIndex[leftEnd + k];
+        s_sortedTris[s_sortedTrisSize] = s_sortedTris[oldSortedIndex];
+        s_triIndex  [s_triIndexSize]   = s_sortedTrisSize;
         s_sortedTrisSize++;
         s_triIndexSize++;
     }
 
     uint rightSize = rightCount + straddleCount;
-
-    // Left child: [begin, straddleEnd) = left-only + straddling (no rearrangement needed)
     uint leftBegin = begin;
     uint leftSize  = leftCount + straddleCount;
 
