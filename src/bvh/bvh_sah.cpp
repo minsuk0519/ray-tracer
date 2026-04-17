@@ -159,7 +159,7 @@ bool trySAHSplit(uint nodeIndex)
         float nodeMin = s_nodes[nodeIndex].aabb.min[axis];
         float nodeMax = s_nodes[nodeIndex].aabb.max[axis];
 
-        if (nodeMax - nodeMin < BVH_CENTROID_EPS)
+        if (nodeMax - nodeMin < BVH_SPATIAL_EPS)
         {
             continue;
         }
@@ -189,15 +189,13 @@ bool trySAHSplit(uint nodeIndex)
             spatialBins[binMin].countIn++;
             spatialBins[binMax].countOut++;
 
+            AABB binRegion;
+            binRegion.min = s_nodes[nodeIndex].aabb.min;
+            binRegion.max = s_nodes[nodeIndex].aabb.max;
             for (int b = binMin; b <= binMax; b++)
             {
-                float binLeft  = nodeMin + (float)b       / spatialBinScale;
-                float binRight = nodeMin + (float)(b + 1) / spatialBinScale;
-                AABB binRegion;
-                binRegion.min = s_nodes[nodeIndex].aabb.min;
-                binRegion.max = s_nodes[nodeIndex].aabb.max;
-                binRegion.min[axis] = binLeft;
-                binRegion.max[axis] = binRight;
+                binRegion.min[axis] = nodeMin + (float)b       / spatialBinScale;
+                binRegion.max[axis] = nodeMin + (float)(b + 1) / spatialBinScale;
 
                 AABB clipped = clipTriangleToAABB(v0, v1, v2, binRegion);
                 if (clipped.valid())
@@ -426,12 +424,32 @@ bool trySAHSplit(uint nodeIndex)
     s_nodes[nodeIndex].childID[0] = leftIndex;
     s_nodes[nodeIndex].childID[1] = rightIndex;
 
-    s_nodes[leftIndex].aabb           = computeRangeAABB(leftBegin, leftBegin + leftSize);
+    // Clip straddlers to the split plane so child AABBs match the SAH cost estimate
+    AABB leftClipBox  = s_nodes[nodeIndex].aabb;
+    AABB rightClipBox = s_nodes[nodeIndex].aabb;
+    leftClipBox.max[bestAxis]  = splitPlane;
+    rightClipBox.min[bestAxis] = splitPlane;
+
+    auto clipExtend = [&](AABB& out, uint k, const AABB& clipBox) {
+        uint triIdx = s_sortedTris[s_triIndex[k]];
+        math::vec3 v0, v1, v2;
+        triVerts(triIdx, v0, v1, v2);
+        AABB clipped = clipTriangleToAABB(v0, v1, v2, clipBox);
+        if (clipped.valid()) { out.extend(clipped); }
+    };
+
+    AABB leftChildAABB;
+    for (uint k = leftBegin; k < leftBegin + leftSize; k++) { clipExtend(leftChildAABB, k, leftClipBox); }
+
+    AABB rightChildAABB;
+    for (uint k = rightBegin; k < rightBegin + rightSize; k++) { clipExtend(rightChildAABB, k, rightClipBox); }
+
+    s_nodes[leftIndex].aabb           = leftChildAABB;
     s_nodes[leftIndex].isLeaf         = true;
     s_nodes[leftIndex].beginTriIndex  = leftBegin;
     s_nodes[leftIndex].triSize        = leftSize;
 
-    s_nodes[rightIndex].aabb          = computeRangeAABB(rightBegin, rightBegin + rightSize);
+    s_nodes[rightIndex].aabb          = rightChildAABB;
     s_nodes[rightIndex].isLeaf        = true;
     s_nodes[rightIndex].beginTriIndex = rightBegin;
     s_nodes[rightIndex].triSize       = rightSize;
