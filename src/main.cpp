@@ -166,8 +166,7 @@ static math::vec3 pathTrace(bvh::Ray ray,
             }
             else
             {
-                // Simple sky gradient: white horizon → blue zenith
-                float t = ray.dir.y * 0.5f + 0.5f;   // 0 at bottom, 1 at top
+                float t = ray.dir.y * 0.5f + 0.5f;
                 math::vec3 horizon(1.0f, 1.0f, 1.0f);
                 math::vec3 zenith (0.5f, 0.7f, 1.0f);
                 env = horizon * (1.f - t) + zenith * t;
@@ -179,7 +178,6 @@ static math::vec3 pathTrace(bvh::Ray ray,
         // Lambertian albedo (uniform white for now — no per-triangle material)
         const math::vec3 albedo(0.8f, 0.8f, 0.8f);
 
-        // Cosine-weighted hemisphere sample
         math::vec3 localDir = sampleCosineHemisphere(ud(rng), ud(rng));
         math::vec3 worldDir = toWorld(localDir, hit.normal);
 
@@ -221,7 +219,6 @@ static SceneConfig parseSceneConfig(const std::string& path)
 {
     SceneConfig cfg;
 
-    // default camera: look-at style, pos=(0,1,-5) looking at origin
     cfg.camera    = makeCameraLookAt(math::vec3(0.f, 1.f, -5.f),
                                      math::vec3(0.f, 0.f,  0.f), 60.f);
     cfg.hasCamera = false;
@@ -305,10 +302,8 @@ int main(int argc, char** argv)
     std::string bvhPath = replaceExtension(scenePath, ".bvh");
     std::string hdrPath = replaceExtension(scenePath, ".hdr");
 
-    // Parse camera / screen / ambient / ibl from scene file
     SceneConfig cfg = parseSceneConfig(scenePath);
 
-    // Bake BVH from scene geometry
     fprintf(stdout, "Baking BVH from %s...\n", scenePath.c_str());
     if (!bvh::bakeBVH(scenePath))
     {
@@ -316,14 +311,12 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Load BVH
     if (!bvh::loadBVH(bvhPath))
     {
         fprintf(stderr, "Error: loadBVH failed\n");
         return 1;
     }
 
-    // Load IBL (optional)
     IBL ibl;
     if (!cfg.iblPath.empty()) { ibl.load(cfg.iblPath); }
 

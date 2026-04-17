@@ -14,13 +14,11 @@
 namespace bvh
 {
 
-// Returns world-space positions of a triangle's three vertices.
 static void triVerts(uint triangleIndex, math::vec3& v0, math::vec3& v1, math::vec3& v2)
 {
-    const Triangle& tri = s_triangles[triangleIndex];
-    v0 = math::vec3(s_vertices[tri.v[0]][0], s_vertices[tri.v[0]][1], s_vertices[tri.v[0]][2]);
-    v1 = math::vec3(s_vertices[tri.v[1]][0], s_vertices[tri.v[1]][1], s_vertices[tri.v[1]][2]);
-    v2 = math::vec3(s_vertices[tri.v[2]][0], s_vertices[tri.v[2]][1], s_vertices[tri.v[2]][2]);
+    v0 = math::vec3(s_vertices[s_triangles[triangleIndex].v[0]][0], s_vertices[s_triangles[triangleIndex].v[0]][1], s_vertices[s_triangles[triangleIndex].v[0]][2]);
+    v1 = math::vec3(s_vertices[s_triangles[triangleIndex].v[1]][0], s_vertices[s_triangles[triangleIndex].v[1]][1], s_vertices[s_triangles[triangleIndex].v[1]][2]);
+    v2 = math::vec3(s_vertices[s_triangles[triangleIndex].v[2]][0], s_vertices[s_triangles[triangleIndex].v[2]][1], s_vertices[s_triangles[triangleIndex].v[2]][2]);
 }
 
 bool trySAHSplit(uint nodeIndex)
@@ -29,7 +27,6 @@ bool trySAHSplit(uint nodeIndex)
     uint end      = begin + s_nodes[nodeIndex].triSize;
     uint triCount = s_nodes[nodeIndex].triSize;
 
-    // Binned SAH split: try all 3 axes, pick minimum cost
     int numBins = std::clamp((int)triCount / 4, BVH_SAH_BINS_MIN, BVH_SAH_BINS_MAX);
 
     float bestCost  = BVH_C_ISECT * (float)triCount;  // leaf cost — only split if cheaper
@@ -94,7 +91,6 @@ bool trySAHSplit(uint nodeIndex)
             bins[b].aabb.extend(v2);
         }
 
-        // prefix (left) sweep
         AABB la; uint lc = 0;
         for (int b = 0; b < numBins - 1; b++)
         {
@@ -104,7 +100,6 @@ bool trySAHSplit(uint nodeIndex)
             lCount[b] = lc;
         }
 
-        // suffix (right) sweep — evaluate each split plane
         AABB ra; uint rc = 0;
         for (int b = numBins - 1; b >= 1; b--)
         {
@@ -194,7 +189,6 @@ bool trySAHSplit(uint nodeIndex)
             spatialBins[binMin].countIn++;
             spatialBins[binMax].countOut++;
 
-            // Clip triangle AABB to each bin's spatial range and extend bin AABB
             for (int b = binMin; b <= binMax; b++)
             {
                 float binLeft  = nodeMin + (float)b       / spatialBinScale;
@@ -213,7 +207,6 @@ bool trySAHSplit(uint nodeIndex)
             }
         }
 
-        // Spatial prefix (left) sweep: accumulate entry counts
         AABB spa; uint spLc = 0;
         for (int b = 0; b < numBins - 1; b++)
         {
@@ -223,7 +216,6 @@ bool trySAHSplit(uint nodeIndex)
             spLCount[b] = spLc;
         }
 
-        // Spatial suffix (right) sweep: accumulate exit counts, evaluate SAH cost
         // Left count = accumulated entry; right count = accumulated exit (duplicates allowed)
         AABB spra; uint spRc = 0;
         for (int b = numBins - 1; b >= 1; b--)
