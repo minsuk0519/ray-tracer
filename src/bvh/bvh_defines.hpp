@@ -8,6 +8,7 @@ constexpr uint  INVALID_NODE_INDEX    = 0xFFFFFFFF;
 constexpr int   BVH_LBVH_THRESHOLD   = 64;
 constexpr int   BVH_SAH_BINS_MIN     = 8;
 constexpr int   BVH_SAH_BINS_MAX     = 32;
+constexpr int   BVH_SAH_TRIS_PER_BIN = 4;  // target triangle count per bin when scaling bin count
 constexpr float BVH_C_TRAV           = 1.0f;
 constexpr float BVH_C_ISECT          = 1.2f;
 constexpr float BVH_CENTROID_EPS     = 1e-6f;  // minimum centroid range to attempt an object split

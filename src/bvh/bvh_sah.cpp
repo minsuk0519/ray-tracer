@@ -27,7 +27,7 @@ bool trySAHSplit(uint nodeIndex)
     uint end      = begin + s_nodes[nodeIndex].triSize;
     uint triCount = s_nodes[nodeIndex].triSize;
 
-    int numBins = std::clamp((int)triCount / 4, BVH_SAH_BINS_MIN, BVH_SAH_BINS_MAX);
+    int numBins = std::clamp((int)triCount / BVH_SAH_TRIS_PER_BIN, BVH_SAH_BINS_MIN, BVH_SAH_BINS_MAX);
 
     float bestCost  = BVH_C_ISECT * (float)triCount;  // leaf cost — only split if cheaper
     int   bestAxis  = -1;
@@ -36,13 +36,12 @@ bool trySAHSplit(uint nodeIndex)
     float bestScale = 0.f;
 
     // Save object-split winner separately for spatial-split fallback
-    float bestObjectCost  = bestCost;
     int   bestObjectAxis  = -1;
     int   bestObjectBin   = -1;
     float bestObjectCMin  = 0.f;
     float bestObjectScale = 0.f;
 
-    float parentInvArea = 1.0f / s_nodes[nodeIndex].aabb.half_area();
+    float parentInvArea = 1.0f / std::max(s_nodes[nodeIndex].aabb.half_area(), BVH_SPATIAL_EPS);
 
     struct Bin { AABB aabb; uint count = 0; };
     Bin   bins[BVH_SAH_BINS_MAX];
@@ -82,7 +81,7 @@ bool trySAHSplit(uint nodeIndex)
             uint sortedIndex   = s_triIndex[i];
             uint triangleIndex = s_sortedTris[sortedIndex];
             float c = s_centroids[triangleIndex][axis];
-            int b = std::min((int)((c - cmin) * binScale), numBins - 1);
+            int b = std::clamp((int)((c - cmin) * binScale), 0, numBins - 1);
             bins[b].count++;
             math::vec3 v0, v1, v2;
             triVerts(triangleIndex, v0, v1, v2);
@@ -126,7 +125,6 @@ bool trySAHSplit(uint nodeIndex)
     }
 
     // Save the object-split winner before attempting spatial split
-    bestObjectCost  = bestCost;
     bestObjectAxis  = bestAxis;
     bestObjectBin   = bestBin;
     bestObjectCMin  = bestCMin;
@@ -246,111 +244,19 @@ bool trySAHSplit(uint nodeIndex)
 
     if (bestAxis == -1)
     {
-        // no split improves on the leaf cost
         s_nodes[nodeIndex].isLeaf = true;
         return false;
     }
 
-    // ── Object split path ─────────────────────────────────────────────────────
-    if (!isSpatialSplit)
+    // Shared helper: partition s_triIndex[begin..end) by object-split bin and commit child nodes
+    auto commitObjectSplit = [&](int axis, int bin, float cmin, float scale) -> bool
     {
         auto mid = std::partition(
             s_triIndex.begin() + begin,
             s_triIndex.begin() + end,
             [&](uint sortedIndex) {
-                float c = s_centroids[s_sortedTris[sortedIndex]][bestAxis];
-                return std::min((int)((c - bestCMin) * bestScale), numBins - 1) < bestBin;
-            });
-
-        uint splitPos = (uint)(mid - s_triIndex.begin());
-
-        if (splitPos == begin || splitPos == end)
-        {
-            s_nodes[nodeIndex].isLeaf = true;
-            return false;
-        }
-
-        uint leftIndex  = s_totalNodeCount++;
-        uint rightIndex = s_totalNodeCount++;
-
-        s_nodes[nodeIndex].isLeaf     = false;
-        s_nodes[nodeIndex].childID[0] = leftIndex;
-        s_nodes[nodeIndex].childID[1] = rightIndex;
-
-        s_nodes[leftIndex].aabb           = computeRangeAABB(begin, splitPos);
-        s_nodes[leftIndex].isLeaf         = true;
-        s_nodes[leftIndex].beginTriIndex  = begin;
-        s_nodes[leftIndex].triSize        = splitPos - begin;
-
-        s_nodes[rightIndex].aabb          = computeRangeAABB(splitPos, end);
-        s_nodes[rightIndex].isLeaf        = true;
-        s_nodes[rightIndex].beginTriIndex = splitPos;
-        s_nodes[rightIndex].triSize       = end - splitPos;
-
-        s_queue.push_back({ leftIndex,  true });
-        s_queue.push_back({ rightIndex, true });
-        return true;
-    }
-
-    // ── Spatial split path ────────────────────────────────────────────────────
-    float splitPlane = bestNodeMin + (float)bestBin / bestSpatialBinScale;
-
-    // 3-way partition of s_triIndex[begin..end):
-    //   [left-only | straddling | right-only]
-    // left-only:   triAABB.max[bestAxis] <= splitPlane
-    // right-only:  triAABB.min[bestAxis] >= splitPlane
-    // straddling:  everything else
-
-    auto leftEnd_it = std::partition(
-        s_triIndex.begin() + begin,
-        s_triIndex.begin() + end,
-        [&](uint sortedIndex) {
-            uint triangleIndex = s_sortedTris[sortedIndex];
-            math::vec3 v0, v1, v2;
-            triVerts(triangleIndex, v0, v1, v2);
-            AABB triAABB;
-            triAABB.extend(v0); triAABB.extend(v1); triAABB.extend(v2);
-            return triAABB.max[bestAxis] <= splitPlane;
-        });
-
-    uint leftEnd = (uint)(leftEnd_it - s_triIndex.begin());
-
-    auto straddleEnd_it = std::partition(
-        s_triIndex.begin() + leftEnd,
-        s_triIndex.begin() + end,
-        [&](uint sortedIndex) {
-            uint triangleIndex = s_sortedTris[sortedIndex];
-            math::vec3 v0, v1, v2;
-            triVerts(triangleIndex, v0, v1, v2);
-            AABB triAABB;
-            triAABB.extend(v0); triAABB.extend(v1); triAABB.extend(v2);
-            return triAABB.min[bestAxis] < splitPlane;
-        });
-
-    uint straddleEnd   = (uint)(straddleEnd_it - s_triIndex.begin());
-    uint leftCount     = leftEnd - begin;
-    uint straddleCount = straddleEnd - leftEnd;
-    uint rightCount    = end - straddleEnd;
-
-    auto applyObjectSplitFallback = [&]() -> bool
-    {
-        bestAxis  = bestObjectAxis;
-        bestBin   = bestObjectBin;
-        bestCMin  = bestObjectCMin;
-        bestScale = bestObjectScale;
-
-        if (bestAxis == -1)
-        {
-            s_nodes[nodeIndex].isLeaf = true;
-            return false;
-        }
-
-        auto mid = std::partition(
-            s_triIndex.begin() + begin,
-            s_triIndex.begin() + end,
-            [&](uint sortedIndex) {
-                float c = s_centroids[s_sortedTris[sortedIndex]][bestAxis];
-                return std::min((int)((c - bestCMin) * bestScale), numBins - 1) < bestBin;
+                float c = s_centroids[s_sortedTris[sortedIndex]][axis];
+                return std::clamp((int)((c - cmin) * scale), 0, numBins - 1) < bin;
             });
 
         uint splitPos = (uint)(mid - s_triIndex.begin());
@@ -382,13 +288,76 @@ bool trySAHSplit(uint nodeIndex)
         return true;
     };
 
+    // ── Object split path ─────────────────────────────────────────────────────
+    if (!isSpatialSplit)
+    {
+        return commitObjectSplit(bestAxis, bestBin, bestCMin, bestScale);
+    }
+
+    // ── Spatial split path ────────────────────────────────────────────────────
+    float splitPlane = bestNodeMin + (float)bestBin / bestSpatialBinScale;
+
+    // 3-way partition of s_triIndex[begin..end):
+    //   [left-only | straddling | right-only]
+    // left-only:   triAABB.max[bestAxis] <= splitPlane  (triangles touching the plane exactly go left)
+    // right-only:  triAABB.min[bestAxis] >= splitPlane
+    // straddling:  everything else
+    // Note: a zero-extent triangle lying exactly on the plane goes left by the <= predicate;
+    // the SAH estimate may be off by at most one triangle for such degenerate cases.
+
+    // bestAxis is finalized by Phase 2 before this lambda is defined
+    auto triAxisBounds = [&](uint sortedIndex) -> std::pair<float, float>
+    {
+        uint triangleIndex = s_sortedTris[sortedIndex];
+        math::vec3 v0, v1, v2;
+        triVerts(triangleIndex, v0, v1, v2);
+        AABB triAABB;
+        triAABB.extend(v0);
+        triAABB.extend(v1);
+        triAABB.extend(v2);
+        return { triAABB.min[bestAxis], triAABB.max[bestAxis] };
+    };
+
+    auto leftEndIt = std::partition(
+        s_triIndex.begin() + begin,
+        s_triIndex.begin() + end,
+        [&](uint sortedIndex) {
+            return triAxisBounds(sortedIndex).second <= splitPlane;
+        });
+
+    uint leftEnd = (uint)(leftEndIt - s_triIndex.begin());
+
+    auto straddleEndIt = std::partition(
+        s_triIndex.begin() + leftEnd,
+        s_triIndex.begin() + end,
+        [&](uint sortedIndex) {
+            return triAxisBounds(sortedIndex).first < splitPlane;
+        });
+
+    uint straddleEnd   = (uint)(straddleEndIt - s_triIndex.begin());
+    uint leftCount     = leftEnd - begin;
+    uint straddleCount = straddleEnd - leftEnd;
+    uint rightCount    = end - straddleEnd;
+
+    auto applyObjectSplitFallback = [&]() -> bool
+    {
+        if (bestObjectAxis == -1)
+        {
+            s_nodes[nodeIndex].isLeaf = true;
+            return false;
+        }
+        return commitObjectSplit(bestObjectAxis, bestObjectBin, bestObjectCMin, bestObjectScale);
+    };
+
     if ((leftCount + straddleCount == 0) || (straddleCount + rightCount == 0))
     {
         return applyObjectSplitFallback();
     }
 
-    if (s_triIndexSize + rightCount + straddleCount > (uint)s_triIndex.size() ||
-        s_sortedTrisSize + straddleCount > (uint)s_sortedTris.size())
+    uint kNeededTriIndex   = rightCount + straddleCount;
+    uint kNeededSortedTris = straddleCount;
+    if (s_triIndexSize + kNeededTriIndex > (uint)s_triIndex.size() ||
+        s_sortedTrisSize + kNeededSortedTris > (uint)s_sortedTris.size())
     {
         return applyObjectSplitFallback();
     }
@@ -424,25 +393,38 @@ bool trySAHSplit(uint nodeIndex)
     s_nodes[nodeIndex].childID[0] = leftIndex;
     s_nodes[nodeIndex].childID[1] = rightIndex;
 
-    // Clip straddlers to the split plane so child AABBs match the SAH cost estimate
+    // Child AABBs are computed by clipping all triangles in each child's range against
+    // the split half-space. This uses the full parent AABB as the clip box (not per-bin
+    // clip boxes), so child SA may be slightly looser than the per-bin SAH estimate —
+    // the difference is bounded and acceptable for traversal quality.
     AABB leftClipBox  = s_nodes[nodeIndex].aabb;
     AABB rightClipBox = s_nodes[nodeIndex].aabb;
     leftClipBox.max[bestAxis]  = splitPlane;
     rightClipBox.min[bestAxis] = splitPlane;
 
-    auto clipExtend = [&](AABB& out, uint k, const AABB& clipBox) {
+    auto clipExtend = [&](AABB& out, uint k, const AABB& clipBox)
+    {
         uint triIdx = s_sortedTris[s_triIndex[k]];
         math::vec3 v0, v1, v2;
         triVerts(triIdx, v0, v1, v2);
         AABB clipped = clipTriangleToAABB(v0, v1, v2, clipBox);
-        if (clipped.valid()) { out.extend(clipped); }
+        if (clipped.valid())
+        {
+            out.extend(clipped);
+        }
     };
 
     AABB leftChildAABB;
-    for (uint k = leftBegin; k < leftBegin + leftSize; k++) { clipExtend(leftChildAABB, k, leftClipBox); }
+    for (uint k = leftBegin; k < leftBegin + leftSize; k++)
+    {
+        clipExtend(leftChildAABB, k, leftClipBox);
+    }
 
     AABB rightChildAABB;
-    for (uint k = rightBegin; k < rightBegin + rightSize; k++) { clipExtend(rightChildAABB, k, rightClipBox); }
+    for (uint k = rightBegin; k < rightBegin + rightSize; k++)
+    {
+        clipExtend(rightChildAABB, k, rightClipBox);
+    }
 
     s_nodes[leftIndex].aabb           = leftChildAABB;
     s_nodes[leftIndex].isLeaf         = true;
