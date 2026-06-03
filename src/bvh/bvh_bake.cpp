@@ -79,7 +79,6 @@ static bool reorderNodes()
 
     std::vector<BVHNode> ordered;
     ordered.reserve(s_totalNodeCount);
-    uint orderedSize = 0;
 
     std::vector<uint> remap(s_totalNodeCount, INVALID_NODE_INDEX);
     std::vector<uint> stack;
@@ -91,9 +90,8 @@ static bool reorderNodes()
         uint oldIdx  = stack.back();
         stack.pop_back();
 
-        remap[oldIdx] = orderedSize;
+        remap[oldIdx] = (uint)ordered.size();
         ordered.push_back(s_nodes[oldIdx]);
-        orderedSize++;
 
         // push right then left so left is processed first (LIFO)
         if (!s_nodes[oldIdx].isLeaf)
@@ -104,7 +102,7 @@ static bool reorderNodes()
     }
 
     // fix up child indices using the remap table
-    for (uint i = 0; i < orderedSize; i++)
+    for (uint i = 0; i < (uint)ordered.size(); i++)
     {
         if (!ordered[i].isLeaf)
         {
@@ -125,7 +123,6 @@ static bool reorderTriangles()
 
     std::vector<Triangle> ordered;
     ordered.reserve(s_triIndexSize);
-    uint orderedSize = 0;
 
     for (uint i = 0; i < s_totalNodeCount; i++)
     {
@@ -135,12 +132,11 @@ static bool reorderTriangles()
         }
 
         uint oldBegin = s_nodes[i].beginTriIndex;
-        s_nodes[i].beginTriIndex = orderedSize;
+        s_nodes[i].beginTriIndex = (uint)ordered.size();
 
         for (uint k = 0; k < s_nodes[i].triSize; k++)
         {
             ordered.push_back(s_triangles[s_sortedTris[s_triIndex[oldBegin + k]]]);
-            orderedSize++;
         }
     }
 

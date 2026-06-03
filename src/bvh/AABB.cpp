@@ -59,26 +59,27 @@ AABB merge(const AABB& a, const AABB& b)
     return result;
 }
 
-AABB clipAABB(const AABB& box, int axis, float splitPos, bool leftSide)
+AABB clipAABB(const AABB& box, Axis axis, float splitPos, bool leftSide)
 {
+    int a = (int)axis;
     if (leftSide)
     {
-        if (box.min[axis] >= splitPos)
+        if (box.min[a] >= splitPos)
         {
             return AABB();
         }
         AABB result = box;
-        result.max[axis] = std::min(box.max[axis], splitPos);
+        result.max[a] = std::min(box.max[a], splitPos);
         return result;
     }
     else
     {
-        if (box.max[axis] <= splitPos)
+        if (box.max[a] <= splitPos)
         {
             return AABB();
         }
         AABB result = box;
-        result.min[axis] = std::max(box.min[axis], splitPos);
+        result.min[a] = std::max(box.min[a], splitPos);
         return result;
     }
 }
@@ -97,68 +98,44 @@ AABB clipTriangleToAABB(vec3 v0, vec3 v1, vec3 v2, const AABB& clipRegion)
     poly[2] = v2;
     polySize = 3;
 
-    for (int axis = 0; axis < 3; ++axis)
-    {
+    auto clipAgainstPlane = [&](float planePos, bool isMinSide) {
+        tmpSize = 0;
+        for (int i = 0; i < polySize; ++i)
         {
-            tmpSize = 0;
-            float planePos = clipRegion.min[axis];
-            for (int i = 0; i < polySize; ++i)
-            {
-                int next = (i + 1) % polySize;
-                bool curInside  = poly[i][axis]    >= planePos;
-                bool nextInside = poly[next][axis] >= planePos;
+            int next = (i + 1) % polySize;
+            bool curInside  = isMinSide ? (poly[i][axis]    >= planePos) : (poly[i][axis]    <= planePos);
+            bool nextInside = isMinSide ? (poly[next][axis] >= planePos) : (poly[next][axis] <= planePos);
 
-                if (curInside)
-                {
-                    tmp[tmpSize++] = poly[i];
-                }
+            if (curInside)
+            {
+                tmp[tmpSize++] = poly[i];
+            }
 
-                if (curInside != nextInside)
-                {
-                    float t = (planePos - poly[i][axis]) / (poly[next][axis] - poly[i][axis]);
-                    tmp[tmpSize++] = poly[i] + t * (poly[next] - poly[i]);
-                }
-            }
-            for (int i = 0; i < tmpSize; ++i)
+            if (curInside != nextInside)
             {
-                poly[i] = tmp[i];
-            }
-            polySize = tmpSize;
-            if (polySize == 0)
-            {
-                return AABB();
+                float t = (planePos - poly[i][axis]) / (poly[next][axis] - poly[i][axis]);
+                tmp[tmpSize++] = poly[i] + t * (poly[next] - poly[i]);
             }
         }
-
+        for (int i = 0; i < tmpSize; ++i)
         {
-            tmpSize = 0;
-            float planePos = clipRegion.max[axis];
-            for (int i = 0; i < polySize; ++i)
-            {
-                int next = (i + 1) % polySize;
-                bool curInside  = poly[i][axis]    <= planePos;
-                bool nextInside = poly[next][axis] <= planePos;
+            poly[i] = tmp[i];
+        }
+        polySize = tmpSize;
+    };
 
-                if (curInside)
-                {
-                    tmp[tmpSize++] = poly[i];
-                }
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        clipAgainstPlane(clipRegion.min[axis], true);
+        if (polySize == 0)
+        {
+            return AABB();
+        }
 
-                if (curInside != nextInside)
-                {
-                    float t = (planePos - poly[i][axis]) / (poly[next][axis] - poly[i][axis]);
-                    tmp[tmpSize++] = poly[i] + t * (poly[next] - poly[i]);
-                }
-            }
-            for (int i = 0; i < tmpSize; ++i)
-            {
-                poly[i] = tmp[i];
-            }
-            polySize = tmpSize;
-            if (polySize == 0)
-            {
-                return AABB();
-            }
+        clipAgainstPlane(clipRegion.max[axis], false);
+        if (polySize == 0)
+        {
+            return AABB();
         }
     }
 

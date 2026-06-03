@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <string>
 
 #include "AABB.hpp"
@@ -34,6 +35,7 @@ struct Vertex
 
     float operator[](int axis) const
     {
+        assert(axis >= 0 && axis <= 2);
         if (axis == 0) { return x; }
         if (axis == 1) { return y; }
         return z;

@@ -43,8 +43,8 @@ static bool computeMortonCodes()
 
     s_mortonData.resize(triCount);
     // extra capacity reserved for spatial splits (duplicates appended later)
-    s_sortedTris.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));
-    s_triIndex.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER));
+    s_sortedTris.resize((uint)(triCount * BVH_SPATIAL_TRICOUNT_MULTIPLIER));
+    s_triIndex.resize((uint)(triCount * BVH_SPATIAL_TRICOUNT_MULTIPLIER));
 
     s_sceneAABB = AABB();
     for (uint i = 0; i < triCount; i++)

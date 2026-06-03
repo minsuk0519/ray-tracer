@@ -1,12 +1,14 @@
 #define BAKING
 #include "bvh.hpp"
-#include <bit>
 #include "bvh_bake_state.hpp"
 #include "bvh_bake_types.hpp"
 #include "bvh_bfs.hpp"
 #include "bvh_sah.hpp"
 
 #include "../math/math.hpp"
+
+#include <bit>
+#include <cassert>
 
 namespace bvh
 {
@@ -56,7 +58,7 @@ bool initRoot()
     }
 
     // worst case sizing: N leaves after spatial splits => 2N-1 total nodes in a full binary tree
-    s_nodes.resize((uint)(triCount * SPATIAL_TRICOUNT_MULTIPLIER) * 2 - 1);
+    s_nodes.resize((uint)(triCount * BVH_SPATIAL_TRICOUNT_MULTIPLIER) * 2 - 1);
     s_totalNodeCount = 1;
 
     s_nodes[0].aabb          = s_sceneAABB;
@@ -108,6 +110,7 @@ bool bfsLoop()
 
         uint64_t splitMask  = std::bit_floor(xorCodes);
         uint     splitIndex = findMortonSplitIndex(begin, triCount, splitMask);
+        assert(splitIndex != INVALID_NODE_INDEX);
 
         uint leftIndex  = s_totalNodeCount++;
         uint rightIndex = s_totalNodeCount++;

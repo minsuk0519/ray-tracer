@@ -438,7 +438,7 @@ static void test_clipAABB()
     // Left clip: box straddles the plane -- max should be clamped.
     {
         AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
-        AABB result = clipAABB(box, 0, 2.0f, true);
+        AABB result = clipAABB(box, Axis::AXIS_X, 2.0f, true);
         CHECK(result.valid());
         CHECK_VEC3(result.min, vec3(0, 0, 0));
         CHECK_VEC3(result.max, vec3(2, 4, 4));
@@ -447,7 +447,7 @@ static void test_clipAABB()
     // Right clip: box straddles the plane -- min should be clamped.
     {
         AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
-        AABB result = clipAABB(box, 0, 2.0f, false);
+        AABB result = clipAABB(box, Axis::AXIS_X, 2.0f, false);
         CHECK(result.valid());
         CHECK_VEC3(result.min, vec3(2, 0, 0));
         CHECK_VEC3(result.max, vec3(4, 4, 4));
@@ -456,7 +456,7 @@ static void test_clipAABB()
     // Box entirely on the correct (left) side -- returned unchanged.
     {
         AABB box(vec3(0, 0, 0), vec3(2, 2, 2));
-        AABB result = clipAABB(box, 0, 5.0f, true);
+        AABB result = clipAABB(box, Axis::AXIS_X, 5.0f, true);
         CHECK(result.valid());
         CHECK_VEC3(result.min, vec3(0, 0, 0));
         CHECK_VEC3(result.max, vec3(2, 2, 2));
@@ -465,7 +465,7 @@ static void test_clipAABB()
     // Box entirely on the correct (right) side -- returned unchanged.
     {
         AABB box(vec3(3, 0, 0), vec3(5, 2, 2));
-        AABB result = clipAABB(box, 0, 1.0f, false);
+        AABB result = clipAABB(box, Axis::AXIS_X, 1.0f, false);
         CHECK(result.valid());
         CHECK_VEC3(result.min, vec3(3, 0, 0));
         CHECK_VEC3(result.max, vec3(5, 2, 2));
@@ -474,21 +474,21 @@ static void test_clipAABB()
     // Box entirely on the wrong side (left clip, box is fully right) -- returns invalid.
     {
         AABB box(vec3(3, 0, 0), vec3(5, 2, 2));
-        AABB result = clipAABB(box, 0, 2.0f, true);
+        AABB result = clipAABB(box, Axis::AXIS_X, 2.0f, true);
         CHECK(!result.valid());
     }
 
     // Box entirely on the wrong side (right clip, box is fully left) -- returns invalid.
     {
         AABB box(vec3(0, 0, 0), vec3(2, 2, 2));
-        AABB result = clipAABB(box, 0, 3.0f, false);
+        AABB result = clipAABB(box, Axis::AXIS_X, 3.0f, false);
         CHECK(!result.valid());
     }
 
     // Box with edge exactly on the split plane (left side) -- edge case.
     {
         AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
-        AABB result = clipAABB(box, 0, 0.0f, true);
+        AABB result = clipAABB(box, Axis::AXIS_X, 0.0f, true);
         // box.min[0] == splitPos, so box is "entirely on the wrong side" returns invalid.
         CHECK(!result.valid());
     }
@@ -496,7 +496,7 @@ static void test_clipAABB()
     // Box with max exactly on the split plane (right side) -- returns invalid.
     {
         AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
-        AABB result = clipAABB(box, 0, 4.0f, false);
+        AABB result = clipAABB(box, Axis::AXIS_X, 4.0f, false);
         // box.max[0] == splitPos, treated as entirely on wrong side.
         CHECK(!result.valid());
     }
@@ -504,7 +504,7 @@ static void test_clipAABB()
     // Test on axis 1 (Y).
     {
         AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
-        AABB result = clipAABB(box, 1, 3.0f, true);
+        AABB result = clipAABB(box, Axis::AXIS_Y, 3.0f, true);
         CHECK(result.valid());
         CHECK_VEC3(result.min, vec3(0, 0, 0));
         CHECK_VEC3(result.max, vec3(4, 3, 4));
@@ -513,7 +513,7 @@ static void test_clipAABB()
     // Test on axis 2 (Z).
     {
         AABB box(vec3(0, 0, 0), vec3(4, 4, 4));
-        AABB result = clipAABB(box, 2, 1.0f, false);
+        AABB result = clipAABB(box, Axis::AXIS_Z, 1.0f, false);
         CHECK(result.valid());
         CHECK_VEC3(result.min, vec3(0, 0, 1));
         CHECK_VEC3(result.max, vec3(4, 4, 4));

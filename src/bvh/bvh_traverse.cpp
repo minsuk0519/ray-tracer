@@ -6,6 +6,7 @@
 #include <fstream>
 #include <limits>
 #include <cmath>
+#include <cassert>
 
 
 namespace bvh
@@ -21,6 +22,7 @@ static std::vector<Vertex>   t_verts;
 
 static float rayAABB(const Ray& ray, const AABB& box, float tmax)
 {
+    assert(ray.dir.x != 0.f && ray.dir.y != 0.f && ray.dir.z != 0.f);
     const float inf = std::numeric_limits<float>::infinity();
 
     float invDirX = 1.f / ray.dir.x;
@@ -95,7 +97,7 @@ static Hit traverse(const Ray& ray)
     Hit   best;
     float bestT = ray.tmax;
 
-    uint stack[64];
+    uint stack[BVH_TRAVERSE_MAX_DEPTH];
     int  top = 0;
     stack[top++] = 0;
 

@@ -27,6 +27,17 @@ bool trySAHSplit(uint nodeIndex)
     uint end      = begin + s_nodes[nodeIndex].triSize;
     uint triCount = s_nodes[nodeIndex].triSize;
 
+    if (triCount <= (uint)BVH_MAX_LEAF_SIZE)
+    {
+        s_nodes[nodeIndex].isLeaf = true;
+        return false;
+    }
+
+    if (s_totalNodeCount + 2 > (uint)s_nodes.size())
+    {
+        return false;
+    }
+
     int numBins = std::clamp((int)triCount / BVH_SAH_TRIS_PER_BIN, BVH_SAH_BINS_MIN, BVH_SAH_BINS_MAX);
 
     float bestCost  = BVH_C_ISECT * (float)triCount;  // leaf cost — only split if cheaper
@@ -41,7 +52,7 @@ bool trySAHSplit(uint nodeIndex)
     float bestObjectCMin  = 0.f;
     float bestObjectScale = 0.f;
 
-    float parentInvArea = 1.0f / std::max(s_nodes[nodeIndex].aabb.half_area(), BVH_SPATIAL_EPS);
+    float parentInvArea = 1.0f / std::max(s_nodes[nodeIndex].aabb.half_area(), BVH_AREA_EPS);
 
     struct Bin { AABB aabb; uint count = 0; };
     Bin   bins[BVH_SAH_BINS_MAX];
@@ -266,6 +277,12 @@ bool trySAHSplit(uint nodeIndex)
             return false;
         }
 
+        if (s_totalNodeCount + 2 > (uint)s_nodes.size())
+        {
+            s_nodes[nodeIndex].isLeaf = true;
+            return false;
+        }
+
         uint leftIndex  = s_totalNodeCount++;
         uint rightIndex = s_totalNodeCount++;
 
@@ -357,7 +374,8 @@ bool trySAHSplit(uint nodeIndex)
     uint kNeededTriIndex   = rightCount + straddleCount;
     uint kNeededSortedTris = straddleCount;
     if (s_triIndexSize + kNeededTriIndex > (uint)s_triIndex.size() ||
-        s_sortedTrisSize + kNeededSortedTris > (uint)s_sortedTris.size())
+        s_sortedTrisSize + kNeededSortedTris > (uint)s_sortedTris.size() ||
+        s_totalNodeCount + 2 > (uint)s_nodes.size())
     {
         return applyObjectSplitFallback();
     }
